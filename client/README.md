@@ -1,16 +1,53 @@
-# React + Vite
+# The Earth Mitra — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Plain Vite + React (JavaScript / JSX, no TypeScript) frontend, converted from the Figma Make design.
 
-Currently, two official plugins are available:
+## Stack
+- React 19
+- React Router 7
+- Vite
+- Tailwind CSS 4
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Getting started
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+Build for production:
+```bash
+npm run build
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Flows
+- Shopping: home, products, product detail, collections, blogs, about, contact
+- Cart drawer -> Checkout (`/checkout`)
+- Login popup (phone number -> OTP) -> Account (`/pages/account`, with Overview, My Orders, Address and Profile tabs at `/pages/account/:tab`)
+- Login and payment are mocked in the frontend; connect them to your backend API when ready
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Structure
+```
+src/
+  App.jsx
+  main.jsx
+  routes.js
+  index.css
+  components/
+    Navbar.jsx
+    Footer.jsx
+    ProductCard.jsx
+    StarRating.jsx
+  pages/
+    Root.jsx
+    HomePage.jsx
+    ProductsPage.jsx
+    ProductDetailPage.jsx
+    CollectionsPage.jsx
+    BlogsPage.jsx
+    AboutPage.jsx
+    ContactPage.jsx
+    CheckoutPage.jsx   (new)
+    AccountPage.jsx    (new)
+  data/
+    index.js
+```
