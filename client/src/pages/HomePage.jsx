@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useNavigate, Link } from 'react-router';
-import { PRODUCTS, BLOGS } from '../data';
+import { BLOGS } from '../data';
+import { getProducts } from '../api';
 import ProductCard from '../components/ProductCard';
 /* ─── Hero slides ─────────────────────────────────── */
 const SLIDES = [
@@ -213,6 +214,15 @@ const ANNOUNCEMENTS = [
 /* ─── Main Page ──────────────────────────────────── */
 export default function HomePage() {
     const { addToCart } = useOutletContext();
+    const [products, setProducts] = useState([]);
+    const [productLoadError, setProductLoadError] = useState('');
+    useEffect(() => {
+        let active = true;
+        getProducts({ limit: 4, sort: 'rating' })
+            .then(result => { if (active) setProducts(result.products); })
+            .catch(error => { if (active) setProductLoadError(error.message); });
+        return () => { active = false; };
+    }, []);
     const navigate = useNavigate();
     const [sectionVisible, setSectionVisible] = useState(false);
     const certRef = useRef(null);
@@ -245,8 +255,9 @@ export default function HomePage() {
             <div className="w-16 h-1 bg-[#C8952A] mx-auto mt-3 rounded-full"/>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {PRODUCTS.slice(0, 4).map((p) => (<ProductCard key={p.id} product={p} onAddToCart={addToCart}/>))}
+            {products.map((p) => (<ProductCard key={p.id} product={p} onAddToCart={addToCart}/>))}
           </div>
+          {productLoadError && <p role="alert" className="text-center text-sm text-red-700 mt-4">Unable to load products: {productLoadError}</p>}
           <div className="text-center mt-10">
             <Link to="/products" className="inline-block border-2 border-[#2D5A2E] text-[#2D5A2E] font-bold px-8 py-3 rounded-full hover:bg-[#2D5A2E] hover:text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
               View All Products

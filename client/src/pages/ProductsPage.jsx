@@ -1,28 +1,63 @@
-import { useState } from 'react';
-import { useOutletContext, Link } from 'react-router';
-import { PRODUCTS } from '../data';
+import { useEffect, useState } from 'react';
+import { useOutletContext, Link, useSearchParams } from 'react-router';
+import { getCategories, getProducts } from '../api';
 import ProductCard from '../components/ProductCard';
 const CATEGORIES_FILTER = ['All', 'Atta, Rice & Dal', 'Masala, Oil & More', 'Tea, Coffee & Healthy'];
 const SORT_OPTIONS = ['Featured', 'Price: Low to High', 'Price: High to Low', 'Best Rating', 'Most Reviews'];
 export default function ProductsPage() {
     const { addToCart } = useOutletContext();
+    const [searchParams] = useSearchParams();
+    const search = searchParams.get('search') || '';
+    const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [categoriesReady, setCategoriesReady] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [sortBy, setSortBy] = useState('Featured');
     const [priceRange, setPriceRange] = useState([0, 1000]);
-    const filtered = PRODUCTS
-        .filter(p => selectedCategory === 'All' || p.category === selectedCategory)
-        .filter(p => p.price >= priceRange[0] && p.price <= priceRange[1])
-        .sort((a, b) => {
-        if (sortBy === 'Price: Low to High')
-            return a.price - b.price;
-        if (sortBy === 'Price: High to Low')
-            return b.price - a.price;
-        if (sortBy === 'Best Rating')
-            return b.rating - a.rating;
-        if (sortBy === 'Most Reviews')
-            return b.reviews - a.reviews;
-        return 0;
-    });
+    useEffect(() => {
+        let active = true;
+        getCategories()
+            .then(result => { if (active) setCategories(result); })
+            .catch(error => { if (active) setLoadError(error.message); })
+            .finally(() => { if (active) setCategoriesReady(true); });
+        return () => { active = false; };
+    }, []);
+    useEffect(() => {
+        if (!categoriesReady) return;
+        const categoryId = selectedCategory === 'All' ? undefined : categories.find(category => category.name === selectedCategory)?._id;
+        if (selectedCategory !== 'All' && !categoryId) {
+            setProducts([]);
+            setTotal(0);
+            setTotalPages(1);
+            setLoading(false);
+            return;
+        }
+        let active = true;
+        setLoading(true);
+        setLoadError('');
+        const sort = {
+            'Price: Low to High': 'price_asc',
+            'Price: High to Low': 'price_desc',
+            'Best Rating': 'rating',
+            'Most Reviews': 'reviews',
+        }[sortBy] || 'newest';
+        getProducts({ page, limit: 12, search, category: categoryId, minPrice: priceRange[0], maxPrice: priceRange[1], sort })
+            .then(result => {
+                if (!active) return;
+                setProducts(result.products);
+                setTotal(result.total);
+                setTotalPages(result.totalPages);
+            })
+            .catch(error => { if (active) setLoadError(error.message); })
+            .finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [categoriesReady, categories, selectedCategory, priceRange, sortBy, search, page]);
+    const filtered = products;
     return (<div className="bg-white min-h-screen">
       {/* Breadcrumb */}
       <div className="border-b border-gray-100 bg-[#FAFAF7]">
@@ -57,7 +92,7 @@ export default function ProductsPage() {
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Category</h4>
                 <div className="space-y-2">
                   {CATEGORIES_FILTER.map(cat => (<label key={cat} className="flex items-center gap-2 cursor-pointer group">
-                      <input type="radio" name="category" checked={selectedCategory === cat} onChange={() => setSelectedCategory(cat)} className="accent-[#2D5A2E]"/>
+                  <input type="radio" name="category" checked={selectedCategory === cat} onChange={() => { setSelectedCategory(cat); setPage(1); }} className="accent-[#2D5A2E]"/>
                       <span className={`text-sm transition-colors ${selectedCategory === cat ? 'text-[#2D5A2E] font-semibold' : 'text-gray-600 group-hover:text-[#2D5A2E]'}`}>{cat}</span>
                     </label>))}
                 </div>
@@ -71,7 +106,7 @@ export default function ProductsPage() {
                   <span>—</span>
                   <span>₹{priceRange[1]}</span>
                 </div>
-                <input type="range" min={0} max={1000} step={50} value={priceRange[1]} onChange={e => setPriceRange([priceRange[0], Number(e.target.value)])} className="w-full accent-[#2D5A2E]"/>
+                <input type="range" min={0} max={1000} step={50} value={priceRange[1]} onChange={e => { setPriceRange([priceRange[0], Number(e.target.value)]); setPage(1); }} className="w-full accent-[#2D5A2E]"/>
               </div>
 
               {/* Tags */}
@@ -90,25 +125,27 @@ export default function ProductsPage() {
           <div className="flex-1">
             {/* Toolbar */}
             <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-              <p className="text-sm text-gray-500">{filtered.length} products found</p>
+              <p className="text-sm text-gray-500">{loading ? 'Loading products…' : `${total} products found`}</p>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">Sort by:</span>
-                <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-[#2D5A2E] bg-white">
+                <select value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(1); }} className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-[#2D5A2E] bg-white">
                   {SORT_OPTIONS.map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>
             </div>
 
             {/* Grid */}
+            {loadError && <div role="alert" className="mb-5 rounded-lg bg-red-50 p-4 text-sm text-red-700">Unable to load products: {loadError}</div>}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
               {filtered.map(p => (<ProductCard key={p.id} product={p} onAddToCart={addToCart}/>))}
             </div>
 
-            {filtered.length === 0 && (<div className="text-center py-20 text-gray-400">
+            {!loading && !loadError && filtered.length === 0 && (<div className="text-center py-20 text-gray-400">
                 <div className="text-5xl mb-4">🌿</div>
                 <p className="font-medium">No products match your filters</p>
-                <button onClick={() => { setSelectedCategory('All'); setPriceRange([0, 1000]); }} className="mt-4 text-sm text-[#2D5A2E] underline">Clear filters</button>
+                <button onClick={() => { setSelectedCategory('All'); setPriceRange([0, 1000]); setPage(1); }} className="mt-4 text-sm text-[#2D5A2E] underline">Clear filters</button>
               </div>)}
+            {totalPages > 1 && <div className="flex justify-center items-center gap-4 mt-8"><button disabled={page <= 1} onClick={() => setPage(value => value - 1)} className="text-sm text-[#2D5A2E] disabled:text-gray-300">Previous</button><span className="text-xs text-gray-500">Page {page} of {totalPages}</span><button disabled={page >= totalPages} onClick={() => setPage(value => value + 1)} className="text-sm text-[#2D5A2E] disabled:text-gray-300">Next</button></div>}
           </div>
         </div>
       </div>

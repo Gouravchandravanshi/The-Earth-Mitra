@@ -1,5 +1,23 @@
 const User = require("../models/User");
 
+const getAdminUsers = async (req, res) => {
+  try {
+    const page = Number(req.query.page ?? 1);
+    const limit = Number(req.query.limit ?? 100);
+    if (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1 || limit > 100) {
+      return res.status(400).json({ message: "page must be >= 1 and limit must be between 1 and 100" });
+    }
+    const filter = { role: "user" };
+    const [total, users] = await Promise.all([
+      User.countDocuments(filter),
+      User.find(filter).select("name email phone createdAt").sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    ]);
+    return res.json({ users, page, limit, total, totalPages: Math.ceil(total / limit) });
+  } catch {
+    return res.status(500).json({ message: "Unable to retrieve customers" });
+  }
+};
+
 const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
@@ -66,4 +84,4 @@ const deleteAddress = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, updatePassword, addAddress, deleteAddress };
+module.exports = { getAdminUsers, getProfile, updateProfile, updatePassword, addAddress, deleteAddress };

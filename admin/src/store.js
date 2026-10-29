@@ -1,7 +1,8 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit'
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+const apiOrigin = typeof window === 'undefined' ? 'http://localhost:5000' : `${window.location.protocol}//${window.location.hostname}:5000`
 export const api = createApi({
-  baseQuery: fetchBaseQuery({ baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:5000/api', credentials: 'include' }),
+  baseQuery: fetchBaseQuery({ baseUrl: import.meta.env.VITE_API_URL || `${apiOrigin}/api`, credentials: 'include' }),
   endpoints: b => ({
     list: b.query({ query: p => p }),
     send: b.mutation({ query: ({ url, method = 'POST', body }) => ({ url, method, body }) }),

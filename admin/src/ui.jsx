@@ -10,13 +10,13 @@ export const Head = ({ title, sub, children }) => (
   <div className="mb-[22px] flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-[24px] font-semibold text-ink">{title}</h1>{sub && <p className="text-sm text-mute">{sub}</p>}</div><div className="flex gap-2">{children}</div></div>)
 export const Card = ({ title, children, className = '' }) => (
   <section className={`overflow-hidden rounded-xl border border-line bg-card shadow-[0_6px_10px_rgba(61,42,23,0.05)] ${className}`}>{title && <h3 className="px-5 pt-5 text-lg font-semibold text-ink">{title}</h3>}<div className={title ? 'p-5 pt-4' : ''}>{children}</div></section>)
-export const Field = ({ l, t = 'text', o, span, n }) => {
+export const Field = ({ l, t = 'text', o = [], span, n, d }) => {
   const c = 'w-full rounded-lg border border-line bg-card px-3 text-sm text-ink outline-none focus:border-forest-600'
   return <label className={`block ${span ? 'col-span-2' : ''}`}>
     {t === 'check' ? <span className="flex items-center gap-2 text-sm text-ink"><input name={n || l} type="checkbox" className="accent-[#1e6e53]" />{l}</span> : <>
       <span className="mb-2 block text-xs font-semibold text-ink">{l}</span>
-      {t === 'select' ? <select name={n || l} className={`${c} h-[42px]`}>{o.map(x => <option key={x}>{x}</option>)}</select>
-        : t === 'area' ? <textarea name={n || l} rows={4} className={`${c} py-2`} /> : <input name={n || l} type={t} className={`${c} h-[42px]`} />}</>}
+      {t === 'select' ? <select name={n || l} defaultValue={d} className={`${c} h-[42px]`}>{o.map(x => typeof x === 'string' ? <option key={x} value={x}>{x}</option> : <option key={x.value} value={x.value}>{x.label}</option>)}</select>
+        : t === 'area' ? <textarea name={n || l} rows={4} defaultValue={d} className={`${c} py-2`} /> : <input name={n || l} type={t} defaultValue={d} multiple={t === 'file' && n === 'images'} className={`${c} h-[42px]`} />}</>}
   </label>
 }
 export const Fields = ({ fs = [] }) => <div className="grid grid-cols-2 gap-4">{fs.map(f => <Field key={f.l} {...f} />)}</div>
@@ -27,7 +27,7 @@ export const Modal = ({ open, onClose, title, side, children }) => open && (
     </div></div>)
 export const Table = ({ cols, rows, onRow }) => (<>
   <div className="space-y-3 p-3 md:hidden">{rows.map((r, i) => (
-    <div key={i} onClick={() => onRow?.(r)} className="rounded-xl border border-line p-3 text-sm"><div className="font-medium text-ink">{r[0]}</div>
+    <div key={i} onClick={() => onRow?.(r, i)} className="rounded-xl border border-line p-3 text-sm"><div className="font-medium text-ink">{r[0]}</div>
       {r.slice(1).map((x, j) => <div key={j} className="mt-1 flex justify-between gap-3"><span className="text-mute">{cols[j + 1]}</span><span className="text-right text-ink"><Badge>{x}</Badge></span></div>)}</div>))}</div>
   <div className="hidden overflow-x-auto md:block"><table className="w-full text-xs"><thead><tr>{cols.map(c => <th key={c} className="h-[42px] bg-head px-[14px] text-left text-[11px] font-semibold uppercase tracking-[0.4px] text-mute">{c}</th>)}</tr></thead>
     <tbody>{rows.map((r, i) => <tr key={i} onClick={() => onRow?.(r)} className={`border-t border-line ${onRow ? 'cursor-pointer hover:bg-forest-50/10' : ''}`}>{r.map((x, j) => <td key={j} className="whitespace-nowrap px-[14px] py-3 text-xs text-ink"><Badge>{x}</Badge></td>)}</tr>)}</tbody></table></div></>)

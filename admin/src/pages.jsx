@@ -11,7 +11,7 @@ const IField = ({ l, I, ...p }) => (
   <label className="flex flex-col gap-2"><span className="text-xs font-semibold text-ink">{l}</span>
     <span className="flex h-[42px] items-center gap-2 rounded-lg border border-line bg-white px-3"><I size={16} className="text-mute" /><input {...p} className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink" /></span></label>)
 export function Login() {
-  const nav = useNavigate(), dispatch = useDispatch(), [send] = useSendMutation(), [err, setErr] = useState('')
+  const nav = useNavigate(), dispatch = useDispatch(), [send, { isLoading }] = useSendMutation(), [err, setErr] = useState('')
   return (
     <div className="flex min-h-screen bg-bg">
       <div className="relative hidden w-[650px] shrink-0 flex-col justify-between overflow-hidden bg-forest-600 p-16 lg:flex">
@@ -25,13 +25,23 @@ export function Login() {
       <div className="grid flex-1 place-items-center p-6">
         <div className="flex w-full max-w-[460px] flex-col gap-6 rounded-xl border border-line bg-white p-9 shadow-[0_6px_10px_rgba(61,42,23,0.05)]">
           <div className="flex flex-col gap-2"><h1 className="text-[28px] font-semibold text-ink">Welcome back</h1><p className="text-sm text-mute">Sign in to your Earth Mitra Admin account.</p></div>
-          <form className="flex flex-col gap-4" onSubmit={async e => { e.preventDefault(); const r = await send({ url: '/auth/login', body: Object.fromEntries(new FormData(e.target)) }); r.data ? (dispatch(setUser(r.data.user || r.data)), nav('/')) : setErr('Login failed') }}>
+          <form className="flex flex-col gap-4" onSubmit={async e => {
+            e.preventDefault(); setErr('')
+            try {
+              const user = await send({ url: '/auth/login', body: Object.fromEntries(new FormData(e.currentTarget)) }).unwrap()
+              if (user.role !== 'admin') {
+                await send({ url: '/auth/logout' })
+                setErr('This account does not have admin access.')
+                return
+              }
+              dispatch(setUser(user)); nav('/')
+            } catch (error) { setErr(error?.data?.message || 'Could not sign in. Check the server connection and credentials.') }
+          }}>
             <IField l="Email address" I={Mail} name="email" type="email" placeholder="ananya@earthmitra.in" />
             <IField l="Password" I={Lock} name="password" type="password" placeholder="••••••••••••" />
             <div className="flex justify-between text-xs"><span className="flex items-center gap-2 text-mute"><span className="grid size-[18px] place-items-center rounded bg-forest-600"><Check size={12} color="#fff" /></span>Remember me</span><span className="font-semibold text-forest-600">Forgot password?</span></div>
             {err && <p className="text-sm text-red-600">{err}</p>}
-            <Btn type="submit" className="w-full justify-center">Sign in securely</Btn>
-            <button type="button" className="text-[11px] text-mute" onClick={() => nav('/')}>Continue without login (demo)</button>
+            <Btn type="submit" disabled={isLoading} className="w-full justify-center">{isLoading ? 'Signing in…' : 'Sign in securely'}</Btn>
           </form>
           <p className="flex justify-center gap-[5px] text-xs text-mute">Need help? <b className="font-semibold text-forest-600">Contact support</b></p>
         </div>
@@ -82,36 +92,104 @@ export function Dashboard() {
   </div>
 }
 
+export function LiveDashboard() {
+  const { data, isLoading, error } = useListQuery('/admin/dashboard')
+  const stats = data?.stats || {}
+  const metrics = [['Revenue', `₹${Number(stats.revenue || 0).toLocaleString('en-IN')}`], ['Orders', stats.orderCount ?? 0], ['Customers', stats.customerCount ?? 0], ['Products', stats.productCount ?? 0]]
+  return <div className="flex flex-col gap-5">
+    <Head title="Dashboard" sub="Live totals from your Earth Mitra database" />
+    {isLoading && <p className="text-sm text-mute">Loading dashboard…</p>}
+    {error && <p role="alert" className="text-sm text-red-700">Could not load dashboard data. Check your admin session and server.</p>}
+    <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(([label, value]) => <Card key={label} title={label}><p className="text-2xl font-semibold text-ink">{value}</p></Card>)}</div>
+    <div className="grid gap-5 xl:grid-cols-2">
+      <Card title="Recent orders"><Table cols={['Order', 'Customer', 'Total', 'Payment', 'Status']} rows={(data?.recentOrders || []).map(order => ['#' + order._id.slice(-6), order.user?.name || order.user?.email || '—', `₹${Number(order.totalAmount || 0).toLocaleString('en-IN')}`, order.paymentInfo?.status || 'pending', order.status])} />{!isLoading && !data?.recentOrders?.length && <p className="p-5 text-sm text-mute">No orders yet.</p>}</Card>
+      <Card title="Low-stock products"><Table cols={['Product', 'SKU', 'Stock']} rows={(data?.lowStockProducts || []).map(product => [product.name, product.sku || '—', product.stock])} />{!isLoading && !data?.lowStockProducts?.length && <p className="p-5 text-sm text-mute">No low-stock products.</p>}<p className="px-5 pb-5 text-xs text-mute">Low stock threshold: 10 units</p></Card>
+    </div>
+  </div>
+}
+
 export function ListPage({ c }) {
-  const nav = useNavigate(), [open, setOpen] = useState(false), [tab, setTab] = useState('All')
-  const { data } = useListQuery(c.api?.path, { skip: !c.api })
+  const nav = useNavigate(), [open, setOpen] = useState(false), [tab, setTab] = useState('All'), [selected, setSelected] = useState(null), [message, setMessage] = useState('')
+  const { data, isLoading, error, refetch } = useListQuery(c.api?.path, { skip: !c.api })
+  const [send, { isLoading: saving }] = useSendMutation()
   const live = c.api && (Array.isArray(data) ? data : data?.[c.api.key])
-  const all = live?.length ? live.map(c.api.map) : c.rows
+  const all = c.api ? (live || []).map(c.api.map) : c.rows
   const rows = tab === 'All' ? all : all.filter(r => r.includes(tab))
-  const onRow = r => (c.rowTo ? nav(c.rowTo(r)) : c.panel && setOpen(true))
+  const onRow = r => {
+    if (c.rowTo) return nav(c.rowTo(r))
+    if (!c.panel || c.api?.create) return
+    const index = all.indexOf(r)
+    setSelected(live?.[index] || null)
+    setMessage('')
+    setOpen(true)
+  }
+  const savePanel = async e => {
+    e.preventDefault(); setMessage('')
+    try {
+      const form = new FormData(e.currentTarget)
+      if (c.api?.create) {
+        await send({ url: c.api.create, body: { name: String(form.get('name') || '').trim() } }).unwrap()
+      } else if (c.api?.type === 'reviews' && selected?._id) {
+        await send({ url: `/reviews/${selected._id}/visibility`, method: 'PUT', body: { isApproved: form.get('status') === 'Published' } }).unwrap()
+      } else if (c.api?.type === 'inventory' && selected?._id) {
+        const change = Number(form.get('change'))
+        const stock = Number(selected.stock) + change
+        if (!Number.isInteger(change) || stock < 0) throw new Error('Stock change must be a whole number and cannot reduce stock below zero.')
+        await send({ url: `/products/${selected._id}`, method: 'PUT', body: { stock } }).unwrap()
+      }
+      setOpen(false); setSelected(null); refetch()
+    } catch (err) { setMessage(err?.data?.message || err.message || 'Could not save these changes.') }
+  }
   return <>
     <Head title={c.title} sub={c.sub}>{c.cta && <Btn onClick={() => (c.cta.to ? nav(c.cta.to) : setOpen(true))}><Plus size={16} />{c.cta.label}</Btn>}</Head>
     {c.tabs && <div className="mb-4 flex flex-wrap gap-2">{['All', ...c.tabs].map(t => (
       <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-sm ${tab === t ? 'bg-forest-600 text-white' : 'border border-line bg-card text-ink'}`}>{t}</button>))}</div>}
-    {c.charts && <Charts />}<Card className={c.charts ? 'mt-5' : ''}><Table cols={c.cols} rows={rows} onRow={c.rowTo || c.panel ? onRow : null} /></Card>
-    {c.panel && <Modal open={open} onClose={() => setOpen(false)} title={c.panel.title} side={c.panel.side}>
-      <Fields fs={c.panel.fields} /><div className="mt-5 flex justify-end gap-2"><Btn v="ghost" onClick={() => setOpen(false)}>Cancel</Btn><Btn onClick={() => setOpen(false)}>{c.panel.cta}</Btn></div></Modal>}
+    {c.charts && <Charts />}{isLoading && <p className="mb-3 text-sm text-mute">Loading records…</p>}{error && <p role="alert" className="mb-3 text-sm text-red-700">Could not load records. Check your admin session and server.</p>}
+    <Card className={c.charts ? 'mt-5' : ''}><Table cols={c.cols} rows={rows} onRow={c.rowTo || c.panel ? onRow : null} />{!isLoading && rows.length === 0 && <p className="p-5 text-sm text-mute">No records found.</p>}</Card>
+    {c.panel && <Modal open={open} onClose={() => { setOpen(false); setSelected(null) }} title={selected && c.key === 'reviews' ? 'Moderate review' : c.panel.title} side={c.panel.side}>
+      <form onSubmit={savePanel}><Fields fs={c.panel.fields.map(field => field.n === 'status' ? { ...field, d: selected?.isApproved === false ? 'Hidden' : 'Published' } : field)} />{message && <p role="alert" className="mt-3 text-sm text-red-700">{message}</p>}<div className="mt-5 flex justify-end gap-2"><Btn type="button" v="ghost" onClick={() => setOpen(false)}>Cancel</Btn><Btn type="submit" disabled={saving}>{saving ? 'Saving…' : c.panel.cta}</Btn></div></form></Modal>}
   </>
 }
 
 export function FormPage({ c }) {
   const nav = useNavigate(), [send, { isLoading }] = useSendMutation(), [msg, setMsg] = useState('')
+  const { data: categoryData } = useListQuery('/categories')
+  const categories = Array.isArray(categoryData) ? categoryData : categoryData?.categories || []
   const submit = async e => {
     e.preventDefault()
     if (!c.api) return
-    const { json, ...req } = c.api, fd = new FormData(e.currentTarget)
-    const r = await send({ ...req, body: json ? Object.fromEntries(fd) : fd })
-    r.data ? nav(-1) : setMsg('Save failed - check the API route and field names')
+    setMsg('')
+    const { json, kind, ...req } = c.api, fd = new FormData(e.currentTarget)
+    try {
+      let body
+      if (kind === 'product') {
+        body = {
+          name: String(fd.get('name') || '').trim(), description: String(fd.get('description') || '').trim(),
+          category: fd.get('category'), sku: String(fd.get('sku') || '').trim() || undefined,
+          price: Number(fd.get('price')), discountPrice: Number(fd.get('discountPrice') || 0), stock: Number(fd.get('stock') || 0),
+          origin: String(fd.get('origin') || '').trim(), eco_certified: fd.has('eco_certified'),
+          certifications: String(fd.get('certifications') || '').split(',').map(x => x.trim()).filter(Boolean),
+        }
+      } else if (kind === 'coupon') {
+        body = { code: String(fd.get('code') || '').trim().toUpperCase(), discountType: fd.get('discountType'), discountValue: Number(fd.get('discountValue')), minOrderAmount: Number(fd.get('minOrderAmount') || 0), usageLimit: Number(fd.get('usageLimit')), expiresAt: fd.get('expiresAt'), isActive: fd.has('isActive') }
+      } else body = json ? Object.fromEntries(fd) : fd
+
+      const created = await send({ ...req, body }).unwrap()
+      if (kind === 'product') {
+        const files = fd.getAll('images').filter(file => file instanceof File && file.size > 0)
+        if (files.length) {
+          const imageData = new FormData()
+          files.slice(0, 5).forEach(file => imageData.append('images', file))
+          await send({ url: `/products/${created._id}/images`, body: imageData }).unwrap()
+        }
+      }
+      nav(-1)
+    } catch (error) { setMsg(error?.data?.message || 'Save failed. Check the form values and server configuration.') }
   }
   return <form onSubmit={submit}>
     <Head title={c.title} sub={c.sub}><Btn type="button" v="ghost" onClick={() => nav(-1)}>Discard</Btn><Btn type="submit" disabled={isLoading}>{c.save || 'Save'}</Btn></Head>
     {msg && <p className="mb-3 text-sm text-red-600">{msg}</p>}
-    <div className="space-y-5">{c.sections.map(s => <Card key={s.t} title={s.t}>{s.picker ? <Picker /> : <Fields fs={s.f} />}</Card>)}</div></form>
+    <div className="space-y-5">{c.sections.map(s => <Card key={s.t} title={s.t}>{s.picker ? <Picker /> : <Fields fs={s.f.map(field => field.n === 'category' ? { ...field, o: categories.map(category => ({ label: category.name, value: category._id })) } : field)} />}</Card>)}</div></form>
 }
 
 export function Detail({ c }) {

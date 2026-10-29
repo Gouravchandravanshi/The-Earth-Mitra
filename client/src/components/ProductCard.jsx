@@ -6,7 +6,7 @@ export default function ProductCard({ product, onAddToCart }) {
         {product.save && (<div className="absolute top-3 left-3 z-10 bg-[#C0392B] text-white text-xs font-bold px-2 py-1 rounded-full">
             Save {product.save}%
           </div>)}
-        <img src={product.img} alt={product.name} className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-300"/>
+        {product.img ? <img src={product.img} alt={product.name} className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-300"/> : <div className="w-full h-56 flex items-center justify-center text-xs text-gray-400">Image unavailable</div>}
         {product.tag && (<div className="absolute bottom-0 left-0 right-0 text-center text-white text-xs font-bold py-1.5" style={{ backgroundColor: product.tagColor || '#2D7A3A' }}>
             {product.tag}
           </div>)}

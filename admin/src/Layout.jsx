@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
 import { LayoutDashboard, Package, Layers, ShoppingBag, Menu, Moon, Sun, Leaf } from 'lucide-react'
+import { setUser, useSendMutation } from './store.js'
 const groups = [['SALES', [['Orders', '/orders'], ['Returns & Refunds', '/returns'], ['Payments', '/payments'], ['Customers', '/customers']]],
   ['CATALOG', [['Products', '/products'], ['Collections', '/collections'], ['Categories', '/categories'], ['Inventory', '/inventory'], ['Reviews', '/reviews']]],
   ['MARKETING', [['Coupons', '/coupons'], ['Banners & Homepage', '/banners']]], ['INSIGHTS', [['Analytics', '/analytics']]],
   ['SETTINGS', [['General', '/settings/general'], ['Shipping & Tax', '/settings/shipping'], ['Team & Roles', '/settings/team'], ['Activity Log', '/settings/activity']]]]
 export default function Layout() {
   const [open, setOpen] = useState(false), [dark, setDark] = useState(false)
+  const user = useSelector(state => state.auth.user), dispatch = useDispatch(), navigate = useNavigate()
+  const [send] = useSendMutation()
   useEffect(() => { document.documentElement.classList.toggle('dark', dark) }, [dark])
   return (
     <div className="min-h-screen bg-bg text-ink">
@@ -26,8 +30,9 @@ export default function Layout() {
           <div className="ml-auto flex items-center gap-4">
             <span className="hidden text-sm font-medium text-forest-600 sm:block">View store ↗</span>
             <button onClick={() => setDark(!dark)} className="text-mute">{dark ? <Sun size={16} /> : <Moon size={16} />}</button>
-            <span className="grid size-[34px] place-items-center rounded-full bg-forest-50 text-[11px] font-bold text-forest-600">AR</span>
-            <span className="hidden text-xs font-semibold text-ink sm:block">Ananya Rao ⌄</span>
+            <span className="grid size-[34px] place-items-center rounded-full bg-forest-50 text-[11px] font-bold text-forest-600">{(user?.name || 'A').slice(0, 1).toUpperCase()}</span>
+            <span className="hidden text-xs font-semibold text-ink sm:block">{user?.name || user?.email || 'Admin'}</span>
+            <button className="text-xs font-semibold text-red-700" onClick={async () => { try { await send({ url: '/auth/logout' }).unwrap() } finally { dispatch(setUser(null)); navigate('/login') } }}>Sign out</button>
           </div>
         </header>
         <main className="p-4 pb-24 lg:px-8 lg:pb-9 lg:pt-[26px]"><Outlet /></main>

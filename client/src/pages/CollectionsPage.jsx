@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams, useOutletContext } from 'react-router';
-import { COLLECTIONS, PRODUCTS } from '../data';
+import { COLLECTIONS } from '../data';
+import { getProducts } from '../api';
 import ProductCard from '../components/ProductCard';
 export function CollectionsListPage() {
     return (<div className="bg-white min-h-screen">
@@ -68,6 +70,8 @@ export function CollectionsListPage() {
 export function CollectionDetailPage() {
     const { slug } = useParams();
     const { addToCart } = useOutletContext();
+    const [allProducts, setAllProducts] = useState([]);
+    const [productError, setProductError] = useState('');
     const collection = COLLECTIONS.find(c => c.slug === slug);
     const collectionNameMap = {
         'atta-rice-dal': 'Atta, Rice & Dal',
@@ -77,7 +81,14 @@ export function CollectionDetailPage() {
         'shravan-special': 'Atta, Rice & Dal',
         'ganapati-special': 'Tea, Coffee & Healthy',
     };
-    const products = PRODUCTS.filter(p => slug ? p.category === collectionNameMap[slug] : true);
+    useEffect(() => {
+        let active = true;
+        getProducts({ limit: 100 })
+            .then(result => { if (active) setAllProducts(result.products); })
+            .catch(error => { if (active) setProductError(error.message); });
+        return () => { active = false; };
+    }, []);
+    const products = allProducts.filter(p => slug ? p.category === collectionNameMap[slug] : true);
     if (!collection)
         return (<div className="min-h-screen flex items-center justify-center flex-col gap-4 text-gray-400">
       <div className="text-5xl">🛒</div>
@@ -110,6 +121,7 @@ export function CollectionDetailPage() {
 
       {/* Products */}
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+        {productError && <p role="alert" className="mb-5 text-sm text-red-700">Unable to load products: {productError}</p>}
         {products.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {products.map(p => (<ProductCard key={p.id} product={p} onAddToCart={addToCart}/>))}
           </div>) : (<div className="text-center py-20 text-gray-400">

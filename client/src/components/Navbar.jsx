@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { NAV_LINKS } from '../data';
+import { phoneTestLogin, requestEmailOtp, verifyEmailOtp } from '../api';
 /* ADDED (new flow): login popup — left-panel feature slides ─────────────────── */
 const LOGIN_FEATURES = [
     { icon: '⭐', title: 'Customer-first', sub: 'Putting you in the center' },
@@ -15,11 +16,12 @@ export default function Navbar({ cartItems, onRemoveCart, user, onLogin, onLogou
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
-    /* ADDED (new flow): login popup state (phone -> OTP steps) */
-    const [loginStep, setLoginStep] = useState('phone');
+    const [loginStep, setLoginStep] = useState('email');
     const [phone, setPhone] = useState('');
-    const [otp, setOtp] = useState(['', '', '', '']);
-    const [resendSecs, setResendSecs] = useState(14);
+    const [email, setEmail] = useState('');
+    const [authMessage, setAuthMessage] = useState('');
+    const [otp, setOtp] = useState(['', '', '', '', '', '']);
+    const [authBusy, setAuthBusy] = useState(false);
     const [featureSlide, setFeatureSlide] = useState(0);
     /* Auto-advance left-panel carousel */
     useEffect(() => {
@@ -28,22 +30,28 @@ export default function Navbar({ cartItems, onRemoveCart, user, onLogin, onLogou
         const t = setInterval(() => setFeatureSlide(s => (s + 1) % LOGIN_FEATURES.length), 3000);
         return () => clearInterval(t);
     }, [loginOpen]);
-    /* Resend OTP countdown */
-    useEffect(() => {
-        if (loginStep !== 'otp')
-            return;
-        setResendSecs(14);
-        const t = setInterval(() => setResendSecs(s => (s > 0 ? s - 1 : 0)), 1000);
-        return () => clearInterval(t);
-    }, [loginStep]);
-    // ADDED (new flow): open/close login popup, phone submit, OTP input and verify handlers
-    function openLogin() { setLoginOpen(true); setLoginStep('phone'); setPhone(''); setOtp(['', '', '', '']); setFeatureSlide(0); }
+    function openLogin() { setLoginOpen(true); setLoginStep('email'); setPhone(''); setEmail(''); setOtp(['', '', '', '', '', '']); setAuthMessage(''); setFeatureSlide(0); }
     function closeLogin() { setLoginOpen(false); }
     function handlePhoneSubmit(e) {
         e.preventDefault();
-        if (phone.length < 10)
-            return;
-        setLoginStep('otp');
+        if (!phone.trim()) return;
+        setAuthMessage('');
+        setOtp(['', '', '', '']);
+        setLoginStep('phone-otp');
+    }
+    async function handleEmailSubmit(e) {
+        e.preventDefault();
+        setAuthBusy(true);
+        setAuthMessage('');
+        try {
+            await requestEmailOtp(email.trim());
+            setOtp(['', '', '', '', '', '']);
+            setLoginStep('email-otp');
+        } catch (error) {
+            setAuthMessage(error.message);
+        } finally {
+            setAuthBusy(false);
+        }
     }
     function handleOtpChange(i, val) {
         if (!/^\d?$/.test(val))
@@ -51,17 +59,36 @@ export default function Navbar({ cartItems, onRemoveCart, user, onLogin, onLogou
         const next = [...otp];
         next[i] = val;
         setOtp(next);
-        if (val && i < 3) {
+        if (val && i < otp.length - 1) {
             const el = document.getElementById(`otp-${i + 1}`);
             el?.focus();
         }
     }
-    function handleVerify(e) {
+    async function handleVerify(e) {
         e.preventDefault();
-        // NOTE: mock login (any OTP works). Replace with a real verify-OTP API call when the backend is ready.
-        onLogin({ name: 'Gourav', phone: `+91${phone}`, email: '' });
-        closeLogin();
-        navigate('/pages/account');
+        const code = otp.join('');
+        if (loginStep === 'email-otp' && code.length !== 6) {
+            setAuthMessage('Enter the six-digit code sent to your email.');
+            return;
+        }
+        if (loginStep === 'phone-otp' && !code) {
+            setAuthMessage('Enter any OTP to continue in test mode.');
+            return;
+        }
+        setAuthBusy(true);
+        setAuthMessage('');
+        try {
+            const signedInUser = loginStep === 'email-otp'
+                ? await verifyEmailOtp(email.trim(), code)
+                : await phoneTestLogin(`+91${phone}`, code);
+            onLogin?.(signedInUser);
+            closeLogin();
+            navigate('/pages/account');
+        } catch (error) {
+            setAuthMessage(error.message);
+        } finally {
+            setAuthBusy(false);
+        }
     }
     const cartTotal = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
     const cartCount = cartItems.reduce((s, i) => s + i.qty, 0);
@@ -234,59 +261,41 @@ export default function Navbar({ cartItems, onRemoveCart, user, onLogin, onLogou
                 ×
               </button>
 
-              {loginStep === 'phone' ? (<>
-                  <h2 className="text-2xl font-bold text-[#2C1A0E] mb-6 text-center">Login here!</h2>
-                  <form onSubmit={handlePhoneSubmit} className="space-y-4">
-                    <div className="flex gap-0 border border-gray-300 rounded-lg overflow-hidden focus-within:border-[#2C1A0E] focus-within:ring-1 focus-within:ring-[#2C1A0E] transition-all">
-                      <span className="bg-white px-3 py-3 text-sm font-medium text-[#2C1A0E] border-r border-gray-300 flex-shrink-0 flex items-center">
-                        +91
-                      </span>
-                      <input type="tel" autoFocus maxLength={10} value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} placeholder="Enter Mobile Number" className="flex-1 px-3 py-3 text-sm outline-none bg-white" required/>
+              {loginStep === 'email' || loginStep === 'phone' ? (<>
+                  <h2 className="text-2xl font-bold text-[#2C1A0E] mb-5 text-center">Login here!</h2>
+                  <div className="flex rounded-lg bg-gray-100 p-1 mb-5">
+                    <button type="button" onClick={() => { setLoginStep('email'); setAuthMessage(''); }} className={`flex-1 py-2 text-sm rounded-md ${loginStep === 'email' ? 'bg-white shadow font-semibold' : 'text-gray-500'}`}>Email OTP</button>
+                    <button type="button" onClick={() => { setLoginStep('phone'); setAuthMessage(''); }} className={`flex-1 py-2 text-sm rounded-md ${loginStep === 'phone' ? 'bg-white shadow font-semibold' : 'text-gray-500'}`}>Phone test login</button>
+                  </div>
+                  {loginStep === 'email' ? <form onSubmit={handleEmailSubmit} className="space-y-4">
+                    <input type="email" autoFocus autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Enter your email" className="w-full border border-gray-300 rounded-lg px-3 py-3 text-sm outline-none focus:border-[#2C1A0E]" required/>
+                    <button type="submit" disabled={authBusy} className="w-full bg-[#4A4A4A] text-white font-semibold py-3 rounded-lg text-sm disabled:opacity-60">{authBusy ? 'Sending code...' : 'Send email code'}</button>
+                    <p className="text-center text-xs text-gray-500">We will email you a one-time sign-in code.</p>
+                  </form> : <form onSubmit={handlePhoneSubmit} className="space-y-4">
+                    <div className="flex border border-gray-300 rounded-lg overflow-hidden focus-within:border-[#2C1A0E]">
+                      <span className="px-3 py-3 text-sm border-r border-gray-300">+91</span>
+                      <input type="tel" autoFocus value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} placeholder="Enter Mobile Number" className="flex-1 px-3 py-3 text-sm outline-none" required/>
                     </div>
-                    <button type="submit" className="w-full bg-[#4A4A4A] text-white font-semibold py-3 rounded-lg text-sm hover:bg-[#333] transition-colors">
-                      Submit
-                    </button>
-                    <label className="flex items-start gap-2 cursor-pointer">
-                      <input type="checkbox" defaultChecked className="mt-0.5 accent-[#2D5A2E]"/>
-                      <span className="text-xs text-gray-500">
-                        Notify me with offers &amp; updates&nbsp;
-                        <button type="button" className="text-blue-500 hover:underline">Read details</button>
-                      </span>
-                    </label>
-                    <div className="text-center text-xs text-gray-400 mt-4">
-                      Powered by&nbsp;
-                      <span className="font-bold text-gray-700">Kwik<span className="text-yellow-500">⚡</span>Pass</span>
-                    </div>
-                  </form>
+                    <button type="submit" className="w-full bg-[#4A4A4A] text-white font-semibold py-3 rounded-lg text-sm">Continue</button>
+                    <p className="text-center text-xs text-amber-700">Test login: any number and any OTP work.</p>
+                  </form>}
+                  {authMessage && <p role="alert" className="text-xs text-red-600 mt-3">{authMessage}</p>}
                 </>) : (<>
                   <h2 className="text-2xl font-bold text-[#2C1A0E] mb-2 text-center">OTP Verification</h2>
                   <p className="text-sm text-gray-500 text-center mb-6">
-                    Verification code sent to{' '}
-                    <strong className="text-[#2C1A0E]">+91 {phone}</strong>{' '}
-                    <button onClick={() => setLoginStep('phone')} className="text-blue-500">✏️</button>
+                    {loginStep === 'email-otp' ? <>Enter the code sent to <strong className="text-[#2C1A0E]">{email}</strong></> : <>Enter any code for <strong className="text-[#2C1A0E]">+91 {phone}</strong></>}{' '}
+                    <button type="button" onClick={() => { setLoginStep(loginStep === 'email-otp' ? 'email' : 'phone'); setAuthMessage(''); }} className="text-blue-500">Edit</button>
                   </p>
                   <form onSubmit={handleVerify} className="space-y-5">
-                    {/* OTP boxes */}
-                    <div className="flex gap-3 justify-center">
-                      {otp.map((digit, i) => (<input key={i} id={`otp-${i}`} type="text" inputMode="numeric" maxLength={1} value={digit} onChange={e => handleOtpChange(i, e.target.value)} onKeyDown={e => {
+                    <div className="flex gap-2 justify-center">
+                      {otp.slice(0, loginStep === 'email-otp' ? 6 : 4).map((digit, i) => (<input key={i} id={`otp-${i}`} type="text" inputMode="numeric" maxLength={1} value={digit} onChange={e => handleOtpChange(i, e.target.value)} onKeyDown={e => {
                         if (e.key === 'Backspace' && !otp[i] && i > 0)
                             document.getElementById(`otp-${i - 1}`)?.focus();
-                    }} className="w-14 h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-xl outline-none focus:border-[#2C1A0E] transition-colors" autoFocus={i === 0}/>))}
+                    }} className="w-12 h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-xl outline-none focus:border-[#2C1A0E] transition-colors" autoFocus={i === 0}/>))}
                     </div>
-                    {/* Resend */}
-                    <div className="text-center text-xs text-gray-500 flex items-center justify-center gap-1">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-                      </svg>
-                      {resendSecs > 0 ? (<span>Resend OTP in {resendSecs} Sec</span>) : (<button type="button" onClick={() => setResendSecs(14)} className="text-blue-500 hover:underline">Resend OTP</button>)}
-                    </div>
-                    <button type="submit" className="w-full bg-[#4A4A4A] text-white font-semibold py-3 rounded-lg text-sm hover:bg-[#333] transition-colors">
-                      Verify
-                    </button>
-                    <div className="text-center text-xs text-gray-400">
-                      Powered by&nbsp;
-                      <span className="font-bold text-gray-700">Kwik<span className="text-yellow-500">⚡</span>Pass</span>
-                    </div>
+                    <button type="submit" disabled={authBusy} className="w-full bg-[#4A4A4A] text-white font-semibold py-3 rounded-lg text-sm hover:bg-[#333] transition-colors disabled:opacity-60">{authBusy ? 'Signing in...' : 'Verify'}</button>
+                    {authMessage && <p role="alert" className="text-xs text-red-600">{authMessage}</p>}
+                    {loginStep === 'email-otp' && <button type="button" disabled={authBusy} onClick={handleEmailSubmit} className="w-full text-sm text-blue-600 disabled:opacity-60">Resend code</button>}
                   </form>
                 </>)}
             </div>
@@ -305,9 +314,9 @@ export default function Navbar({ cartItems, onRemoveCart, user, onLogin, onLogou
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
               <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') {
-            navigate('/products');
+            navigate(searchQuery.trim() ? `/products?search=${encodeURIComponent(searchQuery.trim())}` : '/products');
             setSearchOpen(false);
-        } }} placeholder="Search for articles" className="flex-1 text-lg outline-none bg-transparent text-[#2C1A0E] placeholder-gray-400"/>
+          } }} placeholder="Search products" className="flex-1 text-lg outline-none bg-transparent text-[#2C1A0E] placeholder-gray-400"/>
             </div>
           </div>
         </div>)}

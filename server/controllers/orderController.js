@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
@@ -200,7 +201,14 @@ const getAllOrders = async (req, res) => {
 
 const updateOrderStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
+    const { status } = req.body || {};
+    const allowedStatuses = ["processing", "shipped", "delivered", "cancelled"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ message: `status must be one of: ${allowedStatuses.join(", ")}` });
+    }
     const order = await Order.findById(req.params.id);
 
     if (!order) {
@@ -209,9 +217,12 @@ const updateOrderStatus = async (req, res) => {
 
     order.status = status;
     await order.save();
-    res.json({ message: "Order status updated", order });
+    return res.json({ message: "Order status updated", order });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    if (error.name === "ValidationError" || error.name === "CastError") {
+      return res.status(400).json({ message: error.message });
+    }
+    return res.status(500).json({ message: "Unable to update order status" });
   }
 };
 

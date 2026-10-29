@@ -1,32 +1,28 @@
 import { useState } from 'react';
-import { Link, useNavigate, useOutletContext } from 'react-router';
-/* ADDED (new flow): Checkout page — contact, delivery address, payment, billing, discount code and order summary.
-   Payment is mocked: "Pay now" shows an order-placed screen, then redirects to /pages/account. */
+import { Link, useOutletContext } from 'react-router';
+/* Checkout payment is blocked until authentication and payment provider integration are configured. */
 const INDIAN_STATES = ['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu & Kashmir', 'Ladakh', 'Puducherry'];
 export default function CheckoutPage() {
-    const { cartItems } = useOutletContext();
-    const navigate = useNavigate();
+    const { cartItems, user } = useOutletContext();
     const [contact, setContact] = useState({ email: '', notify: true });
     const [delivery, setDelivery] = useState({ country: 'India', firstName: '', lastName: '', company: '', address: '', apt: '', city: '', state: 'Madhya Pradesh', pin: '', phone: '', save: false });
     const [payment, setPayment] = useState('razorpay');
     const [billing, setBilling] = useState('same');
     const [discount, setDiscount] = useState('');
-    const [placed, setPlaced] = useState(false);
+    const [checkoutError, setCheckoutError] = useState('');
     const subtotal = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
     function handlePay(e) {
         e.preventDefault();
-        setPlaced(true);
-        setTimeout(() => navigate('/pages/account'), 2500);
+        if (!user) {
+            setCheckoutError('Please sign in before checkout. The phone login is currently a development test flow.');
+            return;
+        }
+        if (payment !== 'razorpay') {
+            setCheckoutError('Only Razorpay checkout is currently supported by the backend.');
+            return;
+        }
+        setCheckoutError('Payment cannot be started until the authenticated Razorpay flow is connected. No order was placed.');
     }
-    if (placed)
-        return (<div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-2xl shadow-xl p-12 text-center max-w-sm mx-4 animate-slide-up">
-        <div className="text-6xl mb-4">✅</div>
-        <h2 className="text-2xl font-bold text-[#2C1A0E] mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>Order Placed!</h2>
-        <p className="text-sm text-gray-500 mb-2">Thank you for choosing Organic Tattva.</p>
-        <p className="text-xs text-gray-400">Redirecting to your account…</p>
-      </div>
-    </div>);
     return (<div className="min-h-screen bg-white">
       {/* Minimal checkout header */}
       <header className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -49,7 +45,7 @@ export default function CheckoutPage() {
       <form onSubmit={handlePay}>
         <div className="max-w-5xl mx-auto grid lg:grid-cols-[1fr_420px] gap-0">
 
-          {/* ── LEFT: Form ─────────────────────────────────── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ LEFT: Form Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
           <div className="px-6 py-8 lg:pr-10 order-2 lg:order-1">
 
             {/* Contact */}
@@ -196,6 +192,7 @@ export default function CheckoutPage() {
             <button type="submit" className="w-full py-4 rounded-lg text-white font-bold text-base transition-all hover:opacity-90" style={{ backgroundColor: '#3B2314' }}>
               Pay now
             </button>
+            {checkoutError && <p role="alert" className="mt-3 text-sm text-red-700">{checkoutError}</p>}
 
             {/* Footer links */}
             <div className="flex gap-4 mt-6 text-xs text-gray-400">
@@ -205,7 +202,7 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* ── RIGHT: Order Summary ────────────────────────── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ RIGHT: Order Summary Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
           <div className="bg-gray-50 border-l border-gray-200 px-6 py-8 order-1 lg:order-2">
             {/* Items */}
             <div className="space-y-4 mb-6">
@@ -221,7 +218,7 @@ export default function CheckoutPage() {
                       {item.weight && <p className="text-xs text-gray-500">{item.weight}</p>}
                     </div>
                     <span className="text-sm font-semibold text-[#2C1A0E] flex-shrink-0">
-                      ₹{(item.price * item.qty).toLocaleString('en-IN')}.00
+                      Ã¢â€šÂ¹{(item.price * item.qty).toLocaleString('en-IN')}.00
                     </span>
                   </div>)))}
             </div>
@@ -237,8 +234,8 @@ export default function CheckoutPage() {
             {/* Totals */}
             <div className="border-t border-gray-200 pt-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal · {cartItems.reduce((s, i) => s + i.qty, 0)} items</span>
-                <span className="font-medium">₹{subtotal.toLocaleString('en-IN')}.00</span>
+                <span className="text-gray-600">Subtotal Ã‚Â· {cartItems.reduce((s, i) => s + i.qty, 0)} items</span>
+                <span className="font-medium">Ã¢â€šÂ¹{subtotal.toLocaleString('en-IN')}.00</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Shipping</span>
@@ -254,7 +251,7 @@ export default function CheckoutPage() {
               <span className="font-bold text-[#2C1A0E]">Total</span>
               <div className="text-right">
                 <span className="text-xs text-gray-500 mr-1">INR</span>
-                <span className="text-2xl font-black text-[#2C1A0E]">₹{subtotal.toLocaleString('en-IN')}.00</span>
+                <span className="text-2xl font-black text-[#2C1A0E]">Ã¢â€šÂ¹{subtotal.toLocaleString('en-IN')}.00</span>
               </div>
             </div>
           </div>

@@ -1,11 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { getCurrentUser, logoutUser } from '../api';
 export default function Root() {
     const [cartItems, setCartItems] = useState([]);
-    // ADDED (new flow): logged-in user state (null = logged out). Replace with your real auth/API later.
     const [user, setUser] = useState(null);
+    const userActionRef = useRef(false);
+    useEffect(() => {
+        let active = true;
+        getCurrentUser().then((currentUser) => {
+            if (active && !userActionRef.current) setUser(currentUser);
+        }).catch(() => {
+            if (active && !userActionRef.current) setUser(null);
+        });
+        return () => { active = false; };
+    }, []);
     function addToCart(product) {
         setCartItems(prev => {
             const existing = prev.find(i => i.id === product.id);
@@ -17,10 +27,15 @@ export default function Root() {
     function removeFromCart(id) {
         setCartItems(prev => prev.filter(i => i.id !== id));
     }
-    // ADDED (new flow): login / logout helpers used by the login popup and account page
-    function login(u) { setUser(u); }
-    function logout() { setUser(null); }
-    // ADDED (new flow): user, login, logout are shared to all pages through the outlet context
+    function login(currentUser) {
+        userActionRef.current = true;
+        setUser(currentUser);
+    }
+    async function logout() {
+        userActionRef.current = true;
+        setUser(null);
+        try { await logoutUser(); } catch { /* A missing/expired session is already logged out locally. */ }
+    }
     const ctx = { addToCart, cartItems, user, login, logout };
     const { pathname } = useLocation();
     // ADDED (new flow): checkout page has its own minimal header, so hide the main Navbar/Footer there

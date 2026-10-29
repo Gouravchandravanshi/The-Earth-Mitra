@@ -10,7 +10,16 @@ cloudinary.config({
 });
 
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024, files: 5 },
+  fileFilter: (_req, file, callback) => {
+    if (!file.mimetype || !file.mimetype.startsWith("image/")) {
+      return callback(new Error("Only image files are accepted"));
+    }
+    callback(null, true);
+  },
+});
 
 const uploadToCloudinary = (fileBuffer, folder) => {
   return new Promise((resolve, reject) => {
