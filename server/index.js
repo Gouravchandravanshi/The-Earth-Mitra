@@ -2,6 +2,8 @@ const connectDB = require("./config/db");
 const express = require("express");
 const dotenv = require("dotenv");
 const path = require("path");
+// Load credentials before route/controller modules initialize payment clients.
+dotenv.config({ path: path.resolve(__dirname, ".env") });
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/authRoutes");
@@ -15,11 +17,12 @@ const orderRoutes = require("./routes/orderRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const adminReviewRoutes = require("./routes/adminReviewRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const collectionRoutes = require("./routes/collectionRoutes");
+const contentRoutes = require("./routes/contentRoutes");
+const bannerRoutes = require("./routes/bannerRoutes");
+const uploadRoutes = require("./routes/uploadRoutes");
 
 
-// Load the server's own .env file regardless of whether `node` is started from
-// the repository root or from the server directory.
-dotenv.config({ path: path.resolve(__dirname, ".env") });
 const app = express();
 
 app.use(express.json());
@@ -50,13 +53,24 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+// Keep OAuth under /api so the existing frontend/ngrok proxy forwards callbacks.
+app.use("/api/auth/instagram", require("./routes/instagramAuth"));
+app.use("/api/instagram", require("./routes/instagramRoutes"));
 app.use("/api/users", userRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api/collections", collectionRoutes);
+app.use("/api/blogs", contentRoutes("blog"));
+app.use("/api/recipes", contentRoutes("recipe"));
+app.use("/api/banners", bannerRoutes);
+app.use("/api/uploads", uploadRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/admin/shipping", require("./routes/shippingRoutes"));
+app.use("/api/delivery", require("./routes/deliveryRoutes"));
+app.use("/api/webhooks", require("./routes/courierWebhookRoutes"));
 app.use("/api/admin", adminRoutes);
 app.use("/api/reviews", adminReviewRoutes);
 app.use("/api/products/:id/reviews", reviewRoutes);
@@ -78,4 +92,5 @@ async function startServer() {
   }
 }
 
-startServer();
+if (require.main === module) startServer();
+module.exports = { app, startServer };

@@ -7,6 +7,8 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "node --test",
+    "test:instagram": "node scripts/testInstagram.js",
+    "test:shiprocket:live": "node scripts/checkShiprocket.js",
     "seed:product-demo": "node scripts/seedProductDemo.js",
     "backfill:product-ratings": "node scripts/backfillProductRatings.js",
     "create-admin": "node scripts/createAdmin.js"
@@ -27,6 +29,7 @@
     "mongodb": "^7.5.0",
     "mongoose": "^9.7.4",
     "multer": "^2.2.0",
+    "pdfkit": "^0.20.2",
     "razorpay": "^2.9.8",
     "slugify": "^1.6.9"
   },

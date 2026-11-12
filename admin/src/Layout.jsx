@@ -3,10 +3,10 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { LayoutDashboard, Package, Layers, ShoppingBag, Menu, Moon, Sun, Leaf } from 'lucide-react'
 import { setUser, useSendMutation } from './store.js'
-const groups = [['SALES', [['Orders', '/orders'], ['Returns & Refunds', '/returns'], ['Payments', '/payments'], ['Customers', '/customers']]],
+const groups = [['SALES', [['Orders', '/orders'], ['Invoices & Billing', '/billing'], ['Returns & Refunds', '/returns'], ['Payments', '/payments'], ['Customers', '/customers']]],
   ['CATALOG', [['Products', '/products'], ['Collections', '/collections'], ['Categories', '/categories'], ['Inventory', '/inventory'], ['Reviews', '/reviews']]],
-  ['MARKETING', [['Coupons', '/coupons'], ['Banners & Homepage', '/banners']]], ['INSIGHTS', [['Analytics', '/analytics']]],
-  ['SETTINGS', [['General', '/settings/general'], ['Shipping & Tax', '/settings/shipping'], ['Team & Roles', '/settings/team'], ['Activity Log', '/settings/activity']]]]
+  ['MARKETING', [['Coupons', '/coupons'], ['Blogs', '/blogs'], ['Recipes', '/recipes'], ['Banners & Homepage', '/banners']]], ['INSIGHTS', [['Analytics', '/analytics'], ['Instagram Reels', '/instagram']]],
+  ['SETTINGS', [['General', '/settings/general'], ['Shipping & Tax', '/settings/shipping'], ['Instagram', '/settings/instagram'], ['Team & Roles', '/settings/team'], ['Activity Log', '/settings/activity']]]]
 export default function Layout() {
   const [open, setOpen] = useState(false), [dark, setDark] = useState(false)
   const user = useSelector(state => state.auth.user), dispatch = useDispatch(), navigate = useNavigate()

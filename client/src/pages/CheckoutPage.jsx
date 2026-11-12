@@ -1,261 +1,204 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useOutletContext } from 'react-router';
-/* Checkout payment is blocked until authentication and payment provider integration are configured. */
-const INDIAN_STATES = ['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu & Kashmir', 'Ladakh', 'Puducherry'];
+import { applyCheckoutCoupon, createGuestRazorpayOrder, verifyGuestPayment } from '../api';
+
+const STATES = ['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu & Kashmir', 'Ladakh', 'Puducherry'];
+const blankAddress = () => ({ firstName: '', lastName: '', company: '', street: '', apartment: '', city: '', state: 'Madhya Pradesh', pincode: '', phone: '' });
+const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+let razorpayScript;
+function loadRazorpay() {
+  if (window.Razorpay) return Promise.resolve();
+  if (!razorpayScript) {
+    razorpayScript = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => { razorpayScript = null; reject(new Error('Could not load Razorpay. Check your internet connection and try again.')); };
+      document.body.appendChild(script);
+    });
+  }
+  return razorpayScript;
+}
+
+function AddressFields({ address, setAddress, prefix = 'shipping' }) {
+  const inputClass = 'w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-[#2C1A0E]';
+  const set = (field, value) => setAddress(current => ({ ...current, [field]: value }));
+  return <div className="space-y-3">
+    <div className="grid grid-cols-2 gap-3">
+      <input aria-label={`${prefix} first name`} placeholder="First name" required maxLength={80} autoComplete="given-name" value={address.firstName} onChange={e => set('firstName', e.target.value)} className={inputClass}/>
+      <input aria-label={`${prefix} last name`} placeholder="Last name" required maxLength={80} autoComplete="family-name" value={address.lastName} onChange={e => set('lastName', e.target.value)} className={inputClass}/>
+    </div>
+    <input placeholder="Company (optional)" maxLength={120} value={address.company} onChange={e => set('company', e.target.value)} className={inputClass}/>
+    <input placeholder="Address" required maxLength={240} autoComplete="street-address" value={address.street} onChange={e => set('street', e.target.value)} className={inputClass}/>
+    <input placeholder="Apartment, suite, etc. (optional)" maxLength={120} value={address.apartment} onChange={e => set('apartment', e.target.value)} className={inputClass}/>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <input placeholder="City" required maxLength={100} autoComplete="address-level2" value={address.city} onChange={e => set('city', e.target.value)} className={inputClass}/>
+      <select aria-label={`${prefix} state`} value={address.state} onChange={e => set('state', e.target.value)} className={inputClass}>{STATES.map(state => <option key={state}>{state}</option>)}</select>
+      <input placeholder="PIN code" required inputMode="numeric" autoComplete="postal-code" pattern="[0-9]{6}" maxLength={6} value={address.pincode} onChange={e => set('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))} className={inputClass}/>
+    </div>
+    <input placeholder="10 digit mobile number" required type="tel" inputMode="numeric" autoComplete="tel-national" pattern="[0-9]{10}" maxLength={10} value={address.phone} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} className={inputClass}/>
+  </div>;
+}
+
 export default function CheckoutPage() {
-    const { cartItems, user } = useOutletContext();
-    const [contact, setContact] = useState({ email: '', notify: true });
-    const [delivery, setDelivery] = useState({ country: 'India', firstName: '', lastName: '', company: '', address: '', apt: '', city: '', state: 'Madhya Pradesh', pin: '', phone: '', save: false });
-    const [payment, setPayment] = useState('razorpay');
-    const [billing, setBilling] = useState('same');
-    const [discount, setDiscount] = useState('');
-    const [checkoutError, setCheckoutError] = useState('');
-    const subtotal = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
-    function handlePay(e) {
-        e.preventDefault();
-        if (!user) {
-            setCheckoutError('Please sign in before checkout. The phone login is currently a development test flow.');
-            return;
-        }
-        if (payment !== 'razorpay') {
-            setCheckoutError('Only Razorpay checkout is currently supported by the backend.');
-            return;
-        }
-        setCheckoutError('Payment cannot be started until the authenticated Razorpay flow is connected. No order was placed.');
+  const { cartItems, clearCart } = useOutletContext();
+  const [email, setEmail] = useState('');
+  const [delivery, setDelivery] = useState(blankAddress);
+  const [billing, setBilling] = useState(blankAddress);
+  const [billingMode, setBillingMode] = useState('same');
+  const [couponInput, setCouponInput] = useState('');
+  const [coupon, setCoupon] = useState(null);
+  const [couponMessage, setCouponMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [placedOrder, setPlacedOrder] = useState(null);
+
+  const subtotal = useMemo(() => cartItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0), [cartItems]);
+  const shipping = subtotal >= 599 ? 0 : (subtotal > 0 ? 49 : 0);
+  const discount = coupon?.code ? Math.min(subtotal, Number(coupon.discount || 0)) : 0;
+  const total = Math.max(0, subtotal + shipping - discount);
+
+  async function handleApplyCoupon() {
+    setCouponMessage('');
+    if (!couponInput.trim()) return setCouponMessage('Enter a coupon code first.');
+    setCouponBusy(true);
+    try {
+      const result = await applyCheckoutCoupon(couponInput.trim(), subtotal);
+      setCoupon(result);
+      setCouponInput(result.code);
+      setCouponMessage(`${result.code} applied. You save ${money(result.discount)}.`);
+    } catch (err) {
+      setCoupon(null);
+      setCouponMessage(err.message || 'That coupon could not be applied.');
+    } finally {
+      setCouponBusy(false);
     }
-    return (<div className="min-h-screen bg-white">
-      {/* Minimal checkout header */}
-      <header className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-full border-2 border-[#C8952A] bg-amber-50 flex items-center justify-center">
-            <svg viewBox="0 0 40 40" className="w-6 h-6">
-              <path d="M20 8 Q28 14 28 22 Q28 30 20 34 Q12 30 12 22 Q12 14 20 8Z" fill="#2D5A2E"/>
-              <circle cx="20" cy="20" r="4" fill="#C8952A"/>
-            </svg>
-          </div>
-          <span className="font-bold text-lg text-[#2C1A0E]">organic tattva</span>
-        </Link>
-        <Link to="/products">
-          <svg className="w-6 h-6 text-[#2C1A0E]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
-          </svg>
-        </Link>
-      </header>
+  }
 
-      <form onSubmit={handlePay}>
-        <div className="max-w-5xl mx-auto grid lg:grid-cols-[1fr_420px] gap-0">
+  async function handlePay(event) {
+    event.preventDefault();
+    if (!cartItems.length) return setError('Your cart is empty. Add a product before checkout.');
+    setBusy(true);
+    setError('');
+    try {
+      await loadRazorpay();
+      const checkout = await createGuestRazorpayOrder({
+        email,
+        items: cartItems.map(item => ({ productId: item.id || item._id, qty: Number(item.qty) })),
+        shippingAddress: delivery,
+        billingAddress: billingMode === 'same' ? delivery : billing,
+        couponCode: coupon?.code || '',
+      });
+      const options = {
+        key: checkout.key_id,
+        amount: checkout.amount,
+        currency: checkout.currency,
+        name: 'Earth Mitra',
+        description: 'Your Earth Mitra order',
+        order_id: checkout.razorpay_order_id,
+        prefill: checkout.customer,
+        theme: { color: '#3B2314' },
+        handler: async payment => {
+          try {
+            const result = await verifyGuestPayment(payment);
+            setPlacedOrder(result.order);
+            clearCart?.();
+          } catch (verificationError) {
+            setError(verificationError.message || 'Payment could not be verified. If you were charged, contact support with your payment reference.');
+          } finally {
+            setBusy(false);
+          }
+        },
+        modal: { ondismiss: () => setBusy(false) },
+      };
+      const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', response => {
+        setError(response.error?.description || 'Payment did not complete. You can try again.');
+        setBusy(false);
+      });
+      razorpay.open();
+    } catch (err) {
+      setError(err.message || 'Unable to start checkout. Please try again.');
+      setBusy(false);
+    }
+  }
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ LEFT: Form Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
-          <div className="px-6 py-8 lg:pr-10 order-2 lg:order-1">
+  if (placedOrder) return <main className="grid min-h-[75vh] place-items-center px-5 py-12">
+    <section className="w-full max-w-xl rounded-2xl border border-green-200 bg-green-50 p-8 text-center shadow-sm">
+      <div className="mx-auto mb-5 grid size-14 place-items-center rounded-full bg-green-700 text-2xl text-white">✓</div>
+      <h1 className="text-2xl font-bold text-[#2C1A0E]">Order placed successfully</h1>
+      <p className="mt-3 text-sm text-gray-700">We’ll send order updates to <strong>{email}</strong>.</p>
+      <p className="mt-2 text-sm text-gray-700">Order reference: <strong>{placedOrder._id}</strong></p>
+      <p className="mt-2 text-lg font-bold text-[#2C1A0E]">Total paid: {money(placedOrder.totalAmount)}</p>
+      <Link to="/" className="mt-7 inline-flex rounded-lg bg-[#3B2314] px-6 py-3 font-semibold text-white">Continue shopping</Link>
+    </section>
+  </main>;
 
-            {/* Contact */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-bold text-[#2C1A0E]">Contact</h2>
-                <Link to="/" className="text-sm text-blue-500 hover:underline">Sign in</Link>
-              </div>
-              <input type="text" placeholder="Email or mobile phone number" value={contact.email} onChange={e => setContact(c => ({ ...c, email: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-[#2C1A0E] focus:ring-1 focus:ring-[#2C1A0E]/20 transition-all"/>
-              <label className="flex items-center gap-2 mt-3 cursor-pointer">
-                <input type="checkbox" checked={contact.notify} onChange={e => setContact(c => ({ ...c, notify: e.target.checked }))} className="w-4 h-4 rounded accent-[#2D5A2E]"/>
-                <span className="text-sm text-gray-600">Email me with news and offers</span>
-              </label>
-            </div>
-
-            {/* Delivery */}
-            <div className="mb-8">
-              <h2 className="text-lg font-bold text-[#2C1A0E] mb-4">Delivery</h2>
-              <div className="space-y-3">
-                {/* Country */}
-                <div className="border border-gray-300 rounded-lg overflow-hidden">
-                  <label className="block text-[10px] text-gray-500 px-4 pt-2">Country/Region</label>
-                  <select value={delivery.country} onChange={e => setDelivery(d => ({ ...d, country: e.target.value }))} className="w-full px-4 pb-3 text-sm outline-none bg-white">
-                    <option>India</option>
-                  </select>
-                </div>
-
-                {/* First + Last name */}
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-            { placeholder: 'First name', key: 'firstName' },
-            { placeholder: 'Last name', key: 'lastName' },
-        ].map(f => (<input key={f.key} placeholder={f.placeholder} value={delivery[f.key]} onChange={e => setDelivery(d => ({ ...d, [f.key]: e.target.value }))} className="border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-[#2C1A0E] transition-all"/>))}
-                </div>
-
-                {/* Company */}
-                <input placeholder="Company (optional)" value={delivery.company} onChange={e => setDelivery(d => ({ ...d, company: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-[#2C1A0E] transition-all"/>
-
-                {/* Address */}
-                <div className="relative">
-                  <input placeholder="Address" required value={delivery.address} onChange={e => setDelivery(d => ({ ...d, address: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-[#2C1A0E] transition-all pr-10"/>
-                  <svg className="absolute right-3 top-3.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                  </svg>
-                </div>
-
-                {/* Apt */}
-                <input placeholder="Apartment, suite, etc. (optional)" value={delivery.apt} onChange={e => setDelivery(d => ({ ...d, apt: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-[#2C1A0E] transition-all"/>
-
-                {/* City / State / PIN */}
-                <div className="grid grid-cols-3 gap-3">
-                  <input placeholder="City" required value={delivery.city} onChange={e => setDelivery(d => ({ ...d, city: e.target.value }))} className="border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-[#2C1A0E] transition-all"/>
-                  <div className="relative border border-gray-300 rounded-lg overflow-hidden">
-                    <label className="block text-[9px] text-gray-500 px-3 pt-1.5">State</label>
-                    <select value={delivery.state} onChange={e => setDelivery(d => ({ ...d, state: e.target.value }))} className="w-full px-3 pb-2 text-sm outline-none bg-white text-[#2C1A0E]">
-                      {INDIAN_STATES.map(s => <option key={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  <input placeholder="PIN code" required value={delivery.pin} onChange={e => setDelivery(d => ({ ...d, pin: e.target.value }))} className="border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-[#2C1A0E] transition-all"/>
-                </div>
-
-                {/* Phone */}
-                <div className="relative">
-                  <input placeholder="Phone" required value={delivery.phone} onChange={e => setDelivery(d => ({ ...d, phone: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-[#2C1A0E] transition-all pr-10"/>
-                  <svg className="absolute right-3 top-3.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-                  </svg>
-                </div>
-
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={delivery.save} onChange={e => setDelivery(d => ({ ...d, save: e.target.checked }))} className="w-4 h-4 rounded accent-[#2D5A2E]"/>
-                  <span className="text-sm text-gray-600">Save this information for next time</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Shipping method */}
-            <div className="mb-8">
-              <h2 className="text-lg font-bold text-[#2C1A0E] mb-3">Shipping method</h2>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-4 text-sm text-gray-500 text-center">
-                Enter your shipping address to view available shipping methods.
-              </div>
-            </div>
-
-            {/* Payment */}
-            <div className="mb-8">
-              <h2 className="text-lg font-bold text-[#2C1A0E] mb-1">Payment</h2>
-              <p className="text-xs text-green-600 mb-4 flex items-center gap-1">
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"/>
-                </svg>
-                All transactions are secure and encrypted.
-              </p>
-
-              <div className="border border-gray-300 rounded-lg overflow-hidden">
-                {/* Razorpay */}
-                <label className={`flex items-center justify-between px-4 py-4 cursor-pointer ${payment === 'razorpay' ? 'bg-blue-50 border-b border-blue-200' : 'border-b border-gray-200 hover:bg-gray-50'}`}>
-                  <div className="flex items-center gap-3">
-                    <input type="radio" name="payment" value="razorpay" checked={payment === 'razorpay'} onChange={() => setPayment('razorpay')} className="accent-[#2D5A2E]"/>
-                    <span className="text-sm font-medium text-[#2C1A0E]">Razorpay Secure (UPI, Card, Int'l Card, Apple Pay)</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">VISA</span>
-                    <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">MC</span>
-                    <span className="text-xs text-gray-400 font-medium">+12</span>
-                  </div>
-                </label>
-
-                {payment === 'razorpay' && (<div className="px-4 py-3 bg-blue-50 text-xs text-gray-600 border-b border-blue-200">
-                    You'll be redirected to Razorpay Secure (UPI, Card, Int'l Card, Apple Pay) to complete your purchase
-                  </div>)}
-
-                {/* PayU */}
-                <label className={`flex items-center justify-between px-4 py-4 cursor-pointer ${payment === 'payu' ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                  <div className="flex items-center gap-3">
-                    <input type="radio" name="payment" value="payu" checked={payment === 'payu'} onChange={() => setPayment('payu')} className="accent-[#2D5A2E]"/>
-                    <span className="text-sm text-[#2C1A0E]">Cards, UPI, NB, Wallets, BNPL, EMI by PayU India</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">VISA</span>
-                    <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">MC</span>
-                    <span className="text-xs text-gray-400 font-medium">+11</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {/* Billing address */}
-            <div className="mb-8">
-              <h2 className="text-lg font-bold text-[#2C1A0E] mb-3">Billing address</h2>
-              <div className="border border-gray-300 rounded-lg overflow-hidden">
-                <label className={`flex items-center gap-3 px-4 py-4 cursor-pointer border-b border-gray-200 ${billing === 'same' ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                  <input type="radio" name="billing" value="same" checked={billing === 'same'} onChange={() => setBilling('same')} className="accent-[#2D5A2E]"/>
-                  <span className="text-sm font-medium text-[#2C1A0E]">Same as shipping address</span>
-                </label>
-                <label className={`flex items-center gap-3 px-4 py-4 cursor-pointer ${billing === 'different' ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                  <input type="radio" name="billing" value="different" checked={billing === 'different'} onChange={() => setBilling('different')} className="accent-[#2D5A2E]"/>
-                  <span className="text-sm text-[#2C1A0E]">Use a different billing address</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Pay now button */}
-            <button type="submit" className="w-full py-4 rounded-lg text-white font-bold text-base transition-all hover:opacity-90" style={{ backgroundColor: '#3B2314' }}>
-              Pay now
-            </button>
-            {checkoutError && <p role="alert" className="mt-3 text-sm text-red-700">{checkoutError}</p>}
-
-            {/* Footer links */}
-            <div className="flex gap-4 mt-6 text-xs text-gray-400">
-              <a href="#" className="hover:underline">Refund policy</a>
-              <a href="#" className="hover:underline">Privacy policy</a>
-              <a href="#" className="hover:underline">Terms of service</a>
-            </div>
-          </div>
-
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ RIGHT: Order Summary Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
-          <div className="bg-gray-50 border-l border-gray-200 px-6 py-8 order-1 lg:order-2">
-            {/* Items */}
-            <div className="space-y-4 mb-6">
-              {cartItems.length === 0 ? (<p className="text-sm text-gray-400 text-center py-4">No items in cart</p>) : (cartItems.map(item => (<div key={item.id} className="flex items-center gap-3">
-                    <div className="relative flex-shrink-0">
-                      <img src={item.img} alt={item.name} className="w-14 h-14 rounded-lg object-cover border border-gray-200 bg-white"/>
-                      <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gray-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                        {item.qty}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#2C1A0E] line-clamp-2">{item.name}</p>
-                      {item.weight && <p className="text-xs text-gray-500">{item.weight}</p>}
-                    </div>
-                    <span className="text-sm font-semibold text-[#2C1A0E] flex-shrink-0">
-                      Ã¢â€šÂ¹{(item.price * item.qty).toLocaleString('en-IN')}.00
-                    </span>
-                  </div>)))}
-            </div>
-
-            {/* Discount code */}
-            <div className="flex gap-2 mb-6">
-              <input placeholder="Discount code or gift card" value={discount} onChange={e => setDiscount(e.target.value)} className="flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-[#2C1A0E] bg-white transition-all"/>
-              <button type="button" className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-[#2C1A0E] hover:bg-gray-100 transition-colors bg-white">
-                Apply
-              </button>
-            </div>
-
-            {/* Totals */}
-            <div className="border-t border-gray-200 pt-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal Ã‚Â· {cartItems.reduce((s, i) => s + i.qty, 0)} items</span>
-                <span className="font-medium">Ã¢â€šÂ¹{subtotal.toLocaleString('en-IN')}.00</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Shipping</span>
-                <span className="text-gray-400 text-xs flex items-center gap-1 mt-0.5">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>
-                  </svg>
-                  Calculated at next step
-                </span>
-              </div>
-            </div>
-            <div className="border-t border-gray-200 mt-4 pt-4 flex justify-between items-center">
-              <span className="font-bold text-[#2C1A0E]">Total</span>
-              <div className="text-right">
-                <span className="text-xs text-gray-500 mr-1">INR</span>
-                <span className="text-2xl font-black text-[#2C1A0E]">Ã¢â€šÂ¹{subtotal.toLocaleString('en-IN')}.00</span>
-              </div>
-            </div>
-          </div>
+  return <div className="min-h-screen bg-white">
+    <header className="flex items-center justify-between border-b border-gray-200 px-5 py-4 sm:px-8">
+      <Link to="/" className="text-lg font-bold text-[#2C1A0E]">The Earth Mitra</Link>
+      <span className="text-xs text-gray-500">Secure guest checkout · No account OTP required</span>
+    </header>
+    <form onSubmit={handlePay} className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[minmax(0,1fr)_390px] lg:gap-14">
+      <section className="order-2 px-5 py-8 sm:px-8 lg:order-1 lg:pl-10">
+        <div className="mb-8">
+          <h1 className="mb-4 text-xl font-bold text-[#2C1A0E]">Contact</h1>
+          <input type="email" required autoComplete="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#2C1A0E]"/>
+          <p className="mt-2 text-xs text-gray-500">We’ll email your order confirmation and delivery updates. No OTP is needed for this guest checkout.</p>
         </div>
-      </form>
-    </div>);
+        <div className="mb-8">
+          <h2 className="mb-4 text-xl font-bold text-[#2C1A0E]">Delivery · India</h2>
+          <AddressFields address={delivery} setAddress={setDelivery}/>
+        </div>
+        <div className="mb-8">
+          <h2 className="mb-3 text-lg font-bold text-[#2C1A0E]">Shipping method</h2>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">{shipping === 0 ? 'Free shipping on orders of ₹599 or more' : `Standard shipping · ${money(shipping)}`}</div>
+        </div>
+        <div className="mb-8">
+          <h2 className="mb-1 text-lg font-bold text-[#2C1A0E]">Payment</h2>
+          <p className="mb-3 text-xs text-gray-500">Pay securely by UPI, card, net banking, or other methods supported by Razorpay.</p>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-4 text-sm font-medium text-[#2C1A0E]">🔒 Razorpay Secure Checkout</div>
+        </div>
+        <div className="mb-8">
+          <h2 className="mb-3 text-lg font-bold text-[#2C1A0E]">Billing address</h2>
+          <div className="overflow-hidden rounded-lg border border-gray-300">
+            <label className="flex cursor-pointer items-center gap-3 border-b border-gray-200 px-4 py-3 text-sm"><input type="radio" name="billing" checked={billingMode === 'same'} onChange={() => setBillingMode('same')} className="accent-green-800"/> Same as delivery address</label>
+            <label className="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm"><input type="radio" name="billing" checked={billingMode === 'different'} onChange={() => setBillingMode('different')} className="accent-green-800"/> Use a different billing address</label>
+          </div>
+          {billingMode === 'different' && <div className="mt-4"><AddressFields address={billing} setAddress={setBilling} prefix="billing"/></div>}
+        </div>
+        <button type="submit" disabled={busy || !cartItems.length} className="w-full rounded-lg bg-[#3B2314] py-4 font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+          {busy ? <span className="inline-flex items-center gap-2"><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white"/> Starting secure checkout…</span> : `Pay ${money(total)} now`}
+        </button>
+        {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        <p className="mt-4 text-center text-xs text-gray-500">Payment and order are confirmed only after the server verifies Razorpay.</p>
+      </section>
+
+      <aside className="order-1 border-b border-gray-200 bg-gray-50 px-5 py-8 sm:px-8 lg:order-2 lg:border-b-0 lg:border-l lg:px-7">
+        <h2 className="mb-5 text-lg font-bold text-[#2C1A0E]">Order summary</h2>
+        <div className="mb-6 space-y-4">
+          {cartItems.length ? cartItems.map((item, index) => <div key={item.id || item._id || index} className="flex items-center gap-3">
+            <div className="relative shrink-0"><img src={item.img || item.image || ''} alt={item.name} className="size-14 rounded-lg border border-gray-200 bg-white object-cover"/><span className="absolute -right-2 -top-2 grid size-5 place-items-center rounded-full bg-gray-600 text-[10px] font-bold text-white">{item.qty}</span></div>
+            <div className="min-w-0 flex-1"><p className="line-clamp-2 text-sm font-medium text-[#2C1A0E]">{item.name}</p>{item.weight && <p className="text-xs text-gray-500">{item.weight}</p>}</div>
+            <span className="shrink-0 text-sm font-semibold">{money(Number(item.price) * Number(item.qty))}</span>
+          </div>) : <p className="py-5 text-center text-sm text-gray-500">Your cart is empty.</p>}
+        </div>
+        <div className="mb-6 flex gap-2">
+          <input aria-label="Discount code" placeholder="Discount code" value={couponInput} onChange={e => { setCouponInput(e.target.value); setCoupon(null); setCouponMessage(''); }} className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#2C1A0E]"/>
+          <button type="button" onClick={handleApplyCoupon} disabled={couponBusy || !cartItems.length} className="rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-[#2C1A0E] hover:bg-gray-100 disabled:opacity-60">{couponBusy ? 'Applying…' : 'Apply'}</button>
+        </div>
+        {couponMessage && <p role="status" className={`-mt-4 mb-4 text-xs ${coupon?.code ? 'text-green-700' : 'text-red-700'}`}>{couponMessage}</p>}
+        <div className="space-y-2 border-t border-gray-200 pt-4 text-sm">
+          <div className="flex justify-between"><span className="text-gray-600">Subtotal · {cartItems.reduce((sum, item) => sum + Number(item.qty || 0), 0)} items</span><span>{money(subtotal)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-600">Shipping</span><span>{shipping ? money(shipping) : 'Free'}</span></div>
+          {discount > 0 && <div className="flex justify-between text-green-700"><span>Discount ({coupon.code})</span><span>−{money(discount)}</span></div>}
+        </div>
+        <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4"><span className="font-bold text-[#2C1A0E]">Total</span><span className="text-2xl font-black text-[#2C1A0E]">{money(total)}</span></div>
+        <Link to="/products" className="mt-6 inline-block text-sm text-[#3B2314] underline">Continue shopping</Link>
+      </aside>
+    </form>
+  </div>;
 }

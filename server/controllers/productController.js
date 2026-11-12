@@ -1,13 +1,14 @@
 const mongoose = require("mongoose");
 const Product = require("../models/Product");
 const Category = require("../models/Category");
+const Collection = require("../models/Collection");
 const slugify = require("slugify");
 const { uploadToCloudinary, deleteFromCloudinary } = require("../utils/cloudinary");
 
 const editableFields = [
-  "name", "sku", "description", "price", "discountPrice", "stock", "category", "images", "gallery",
-  "variants", "suitableUses", "storage", "allergenInfo", "shelfLife", "eco_certified",
-  "origin", "certifications", "organicCertifications", "faqs",
+  "name", "sku", "description", "mrp", "price", "discountPrice", "stock", "category", "images", "gallery",
+  "variants", "packContains", "suitableUses", "storage", "allergenInfo", "shelfLife", "eco_certified",
+  "origin", "certifications", "organicCertifications", "faqs", "shippingParcel",
 ];
 
 const invalid = (res, message) => res.status(400).json({ message });
@@ -27,17 +28,47 @@ const assignProductFields = (product, body) => {
   if (body.name) product.slug = slugify(body.name, { lower: true, strict: true });
   if (product.slug && !product.slug.trim()) return "Name must produce a valid slug";
   if (body.price !== undefined && (!Number.isFinite(Number(body.price)) || Number(body.price) < 0)) return "Price must be a non-negative number";
+  if (body.mrp !== undefined && (!Number.isFinite(Number(body.mrp)) || Number(body.mrp) < 0)) return "MRP must be a non-negative number";
   if (body.discountPrice !== undefined && (!Number.isFinite(Number(body.discountPrice)) || Number(body.discountPrice) < 0)) return "Discount price must be a non-negative number";
   if (body.stock !== undefined && (!Number.isInteger(Number(body.stock)) || Number(body.stock) < 0)) return "Stock must be a non-negative integer";
+  if (body.shippingParcel !== undefined) {
+    try { product.shippingParcel = require('../services/shiprocket').parcelValues(body.shippingParcel); }
+    catch { return 'Provide all packed product dimensions and weight as positive numbers'; }
+  }
   if (body.category !== undefined && !validObjectId(body.category)) return "Category must be a valid id";
   if (body.sku !== undefined && body.sku !== null && typeof body.sku !== "string") return "SKU must be a string";
+  for (const field of ["packContains", "suitableUses", "certifications"]) {
+    if (body[field] !== undefined && (!Array.isArray(body[field]) || body[field].length > 50 || body[field].some(value => typeof value !== "string" || !value.trim() || value.length > 200))) {
+      return `${field} must be an array of up to 50 non-empty strings (200 characters maximum each)`;
+    }
+  }
+  if (body.allergenInfo !== undefined) {
+    const info = body.allergenInfo;
+    if (!info || typeof info !== "object" || Array.isArray(info)) return "allergenInfo must be an object";
+    if (info.status !== undefined && !["unknown", "contains", "none_confirmed"].includes(info.status)) return "allergenInfo.status must be unknown, contains, or none_confirmed";
+    for (const field of ["allergens", "warnings"]) {
+      if (info[field] !== undefined && (!Array.isArray(info[field]) || info[field].length > 50 || info[field].some(value => typeof value !== "string" || !value.trim() || value.length > 500))) return `allergenInfo.${field} must be an array of non-empty strings`;
+    }
+  }
+  if (body.storage !== undefined) {
+    const storage = body.storage;
+    if (!storage || typeof storage !== "object" || Array.isArray(storage)) return "storage must be an object";
+    if (storage.instructions !== undefined && (typeof storage.instructions !== "string" || storage.instructions.length > 2000)) return "storage.instructions must be a string up to 2000 characters";
+    for (const field of ["minTemperatureC", "maxTemperatureC"]) if (storage[field] !== undefined && storage[field] !== null && (!Number.isFinite(Number(storage[field])) || Number(storage[field]) < -100 || Number(storage[field]) > 100)) return `storage.${field} must be between -100 and 100`;
+    if (storage.minTemperatureC != null && storage.maxTemperatureC != null && Number(storage.minTemperatureC) > Number(storage.maxTemperatureC)) return "storage.minTemperatureC cannot exceed storage.maxTemperatureC";
+  }
+  if (body.faqs !== undefined && (!Array.isArray(body.faqs) || body.faqs.length > 50 || body.faqs.some(faq => !faq || typeof faq.question !== "string" || !faq.question.trim() || faq.question.length > 500 || typeof faq.answer !== "string" || !faq.answer.trim() || faq.answer.length > 3000))) return "faqs must contain up to 50 question and answer pairs";
+  if (product.mrp > 0 && product.mrp < product.price) return "MRP must be greater than or equal to the overall price";
+  if (product.discountPrice > product.price) return "Discounted price must be less than or equal to the overall price";
   return null;
 };
 
 const createProduct = async (req, res) => {
   try {
     const product = new Product();
-    const validationError = assignProductFields(product, req.body || {});
+    const body = { ...(req.body || {}) };
+    if (body.mrp === undefined && body.price !== undefined) body.mrp = body.price;
+    const validationError = assignProductFields(product, body);
     if (validationError) return invalid(res, validationError);
     if (!product.name || !product.description || product.price == null || !product.category) {
       return invalid(res, "name, description, price, and category are required");
@@ -76,7 +107,7 @@ const getAllProducts = async (req, res) => {
     const sortOptions = { newest: { createdAt: -1, _id: -1 }, price_asc: { price: 1, _id: 1 }, price_desc: { price: -1, _id: -1 }, rating: { avgRating: -1, _id: -1 }, reviews: { numReviews: -1, _id: -1 } };
     const total = await Product.countDocuments(query);
     const products = await Product.find(query)
-      .select("name slug sku price discountPrice stock images category eco_certified avgRating numReviews")
+      .select("name slug sku mrp price discountPrice stock images category eco_certified avgRating numReviews")
       .populate("category", "name slug")
       .sort(sortOptions[sort] || sortOptions.newest)
       .skip((page - 1) * limit)
@@ -98,7 +129,7 @@ const getAdminProducts = async (req, res) => {
     const [total, products] = await Promise.all([
       Product.countDocuments(),
       Product.find()
-        .select("name slug sku description price discountPrice stock images gallery category variants suitableUses storage allergenInfo shelfLife eco_certified origin certifications organicCertifications faqs createdAt updatedAt")
+        .select("name slug sku description mrp price discountPrice stock images gallery category variants packContains suitableUses storage allergenInfo shelfLife eco_certified origin certifications organicCertifications faqs shippingParcel createdAt updatedAt")
         .populate("category", "name slug")
         .sort({ updatedAt: -1, _id: -1 })
         .skip((page - 1) * limit)
@@ -131,6 +162,7 @@ const getProductBySlug = async (req, res) => {
       sku: product.sku || null,
       gallery: product.gallery?.length ? product.gallery : (product.images || []),
       variants: product.variants || [],
+      packContains: product.packContains || [],
       suitableUses: product.suitableUses || [],
       storage: {
         instructions: product.storage?.instructions ?? null,
@@ -192,6 +224,7 @@ const deleteProduct = async (req, res) => {
     if (!validObjectId(req.params.id)) return invalid(res, "Invalid product id");
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: "Product not found" });
+    await Collection.updateMany({ products: product._id }, { $pull: { products: product._id } });
     await product.deleteOne();
     return res.json({ message: "Product deleted" });
   } catch (error) {

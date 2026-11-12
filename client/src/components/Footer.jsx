@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
+import earthMitraLogo from '../assets/logo/IMG_0530.JPG.jpeg';
 const EXPLORE = [
     { label: 'Home', to: '/' },
     { label: 'Products', to: '/products' },
@@ -9,13 +10,12 @@ const EXPLORE = [
     { label: 'Contact Us', to: '/contact' },
 ];
 const POLICIES = [
-    { label: 'Privacy Policy', to: '/' },
-    { label: 'Refund Policy', to: '/' },
-    { label: 'Shipping Policy', to: '/' },
-    { label: 'Terms of Service', to: '/' },
-    { label: 'Cancellation Policy', to: '/' },
+    { label: 'Privacy Policy', to: '/pages/privacy-policy' },
+    { label: 'Refund Policy', to: '/pages/refund-policy' },
+    { label: 'Shipping Policy', to: '/pages/shipping-policy' },
+    { label: 'Terms of Service', to: '/pages/terms-of-service' },
+    { label: 'Cancellation Policy', to: '/pages/cancellation-policy' },
 ];
-const CITIES = ['Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Pune', 'Chennai', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Surat'];
 const SOCIALS = [
     {
         name: 'Facebook',
@@ -66,22 +66,14 @@ export default function Footer() {
     return (<footer style={{ backgroundColor: '#2D3B2E' }} className="text-white">
       {/* Top strip */}
       <div className="border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+        <div className="max-w-[1680px] mx-auto px-5 lg:px-10 py-10">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
 
             {/* Brand column */}
             <div className="col-span-2 md:col-span-3 lg:col-span-1">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 rounded-full border-2 border-[#C8952A] bg-white/10 flex items-center justify-center">
-                  <svg viewBox="0 0 40 40" className="w-7 h-7">
-                    <path d="M20 8 Q28 14 28 22 Q28 30 20 34 Q12 30 12 22 Q12 14 20 8Z" fill="#C8952A" opacity="0.9"/>
-                    <circle cx="20" cy="20" r="4" fill="#fff"/>
-                  </svg>
-                </div>
-                <span className="font-bold text-base tracking-wide" style={{ fontFamily: 'Playfair Display, serif' }}>organic tattva</span>
-              </div>
+              <img src={earthMitraLogo} alt="Earth Mitra Farmers" className="mb-4 h-16 w-16 object-contain" />
               <p className="text-xs text-white/60 leading-relaxed mb-5">
-                A natural way of life. Pure, organic, and ethically sourced food products for a healthier you and a healthier planet.
+                Traditional Indian foods, thoughtfully sourced from trusted farmers and brought from farms to kitchens.
               </p>
               <div className="flex gap-2">
                 {SOCIALS.map(s => (<a key={s.name} href="#" aria-label={s.name} className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/15 hover:text-white hover:border-white/40 transition-all">
@@ -105,19 +97,15 @@ export default function Footer() {
               <div className="text-sm font-semibold text-[#C8952A] mb-4 uppercase tracking-wider">Policies</div>
               <ul className="space-y-2.5">
                 {POLICIES.map(l => (<li key={l.label}>
-                    <a href="#" className="text-xs text-white/60 hover:text-white transition-colors">{l.label}</a>
+                    <Link to={l.to} className="text-xs text-white/60 hover:text-white transition-colors">{l.label}</Link>
                   </li>))}
               </ul>
             </div>
 
             {/* Cities */}
             <div>
-              <div className="text-sm font-semibold text-[#C8952A] mb-4 uppercase tracking-wider">Cities We Serve</div>
-              <ul className="space-y-2.5">
-                {CITIES.map(city => (<li key={city}>
-                    <span className="text-xs text-white/60">{city}</span>
-                  </li>))}
-              </ul>
+              <div className="text-sm font-semibold text-[#C8952A] mb-4 uppercase tracking-wider">Delivery</div>
+              <p className="text-xs text-white/60 leading-relaxed">We deliver across most locations in India. Availability depends on courier serviceability for your address.</p>
             </div>
 
             {/* Subscribe */}
@@ -140,9 +128,9 @@ export default function Footer() {
       </div>
 
       {/* Bottom bar */}
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-5">
+      <div className="max-w-[1680px] mx-auto px-5 lg:px-10 py-5">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-white/40">© 2026 Organic Tattva Pvt. Ltd. All rights reserved.</p>
+          <p className="text-xs text-white/40">© 2026 The Earth Mitra Farmers. All rights reserved.</p>
 
           {/* We Accept */}
           <div className="flex items-center gap-2">

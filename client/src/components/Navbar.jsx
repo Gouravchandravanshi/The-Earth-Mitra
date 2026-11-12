@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { NAV_LINKS } from '../data';
+import { ChevronDown, ChevronLeft, ChevronRight, Menu, Search, X } from 'lucide-react';
+import { PDF_CATEGORIES, categoryPath } from '../data/categories';
 import { phoneTestLogin, requestEmailOtp, verifyEmailOtp } from '../api';
+import earthMitraLogo from '../assets/logo/IMG_0530.JPG.jpeg';
+const HEADER_CATEGORIES = PDF_CATEGORIES.filter(category => ![
+    'Wellness', 'Dals & Pulses', 'Salt & Spices', 'Nuts & Seeds',
+].includes(category.name));
 /* ADDED (new flow): login popup — left-panel feature slides ─────────────────── */
 const LOGIN_FEATURES = [
     { icon: '⭐', title: 'Customer-first', sub: 'Putting you in the center' },
     { icon: '🔍', title: 'Transparent', sub: 'Honest from the inside out' },
     { icon: '🌿', title: '100% Organic', sub: 'Tested for 250+ pesticides' },
+];
+const ANNOUNCEMENTS = [
+    'Next Day Delivery Available* | Shop Now',
+    'Free Shipping on Orders Above ₹599',
+    '100% Organic | Tested for 250+ Pesticides',
 ];
 export default function Navbar({ cartItems, onRemoveCart, user, onLogin, onLogout }) {
     const [searchOpen, setSearchOpen] = useState(false);
@@ -14,6 +24,7 @@ export default function Navbar({ cartItems, onRemoveCart, user, onLogin, onLogou
     const [loginOpen, setLoginOpen] = useState(false);
     const [accountOpen, setAccountOpen] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
+    const [mobileCategory, setMobileCategory] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
     const [loginStep, setLoginStep] = useState('email');
@@ -23,6 +34,12 @@ export default function Navbar({ cartItems, onRemoveCart, user, onLogin, onLogou
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [authBusy, setAuthBusy] = useState(false);
     const [featureSlide, setFeatureSlide] = useState(0);
+    const [announcementSlide, setAnnouncementSlide] = useState(0);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    useEffect(() => {
+        const timer = setInterval(() => setAnnouncementSlide(index => (index + 1) % ANNOUNCEMENTS.length), 4000);
+        return () => clearInterval(timer);
+    }, []);
     /* Auto-advance left-panel carousel */
     useEffect(() => {
         if (!loginOpen)
@@ -94,69 +111,87 @@ export default function Navbar({ cartItems, onRemoveCart, user, onLogin, onLogou
     const cartCount = cartItems.reduce((s, i) => s + i.qty, 0);
     return (<>
       {/* Announcement Bar */}
-      <div className="bg-[#111111] text-white text-sm py-2 px-4 flex items-center justify-between">
-        <button className="text-gray-400 hover:text-white">‹</button>
-        <span className="tracking-wide text-xs sm:text-sm">Next Day Delivery Available* | Shop Now</span>
-        <div className="flex items-center gap-3">
-          <button className="text-gray-400 hover:text-white">›</button>
-          <div className="hidden sm:flex items-center gap-3 ml-2 text-gray-400 text-xs">
-            <a href="#" className="hover:text-white">f</a>
-            <a href="#" className="hover:text-white">in</a>
-            <a href="#" className="hover:text-white">yt</a>
-            <a href="#" className="hover:text-white">li</a>
+      <div className="bg-[#111111] text-white min-h-[32px] px-2 sm:min-h-[36px] sm:px-5 flex items-center justify-between">
+        <button
+          type="button"
+          aria-label="Previous announcement"
+          onClick={() => setAnnouncementSlide(index => (index - 1 + ANNOUNCEMENTS.length) % ANNOUNCEMENTS.length)}
+          className="hidden h-8 w-8 shrink-0 items-center justify-center text-gray-300 hover:text-white transition-colors sm:flex"
+        >
+          <ChevronLeft size={24} strokeWidth={2.5} />
+        </button>
+        <div className="min-w-0 flex-1 overflow-hidden text-center" aria-live="polite">
+          <div
+            className="flex transition-transform duration-500 ease-in-out"
+            style={{ transform: `translateX(-${announcementSlide * 100}%)` }}
+          >
+            {ANNOUNCEMENTS.map((announcement) => (
+              <span key={announcement} className="w-full shrink-0 whitespace-nowrap px-1 text-[11px] font-normal tracking-wide sm:px-2 sm:text-[14px]">
+                {announcement}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            aria-label="Next announcement"
+            onClick={() => setAnnouncementSlide(index => (index + 1) % ANNOUNCEMENTS.length)}
+            className="hidden h-8 w-8 shrink-0 items-center justify-center text-gray-300 hover:text-white transition-colors sm:flex"
+          >
+            <ChevronRight size={24} strokeWidth={2.5} />
+          </button>
+          <div className="hidden sm:flex items-center gap-3 ml-2 text-gray-400">
+            <a href="#" aria-label="Facebook" className="hover:text-white" title="Facebook"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1v-2c0-.9.3-1.5 1.6-1.5h1.7V3.6c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.1H7.3V13h2.8v8h3.4Z"/></svg></a>
+            <a href="#" aria-label="Instagram" className="hover:text-white" title="Instagram"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1" fill="currentColor" stroke="none"/></svg></a>
+            <a href="#" aria-label="YouTube" className="hover:text-white" title="YouTube"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12a31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8ZM9.8 15.3V8.7l5.8 3.3-5.8 3.3Z"/></svg></a>
+            <a href="#" aria-label="LinkedIn" className="hover:text-white" title="LinkedIn"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true"><path d="M5.2 3.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM3.5 9h3.4v11.5H3.5V9Zm5.5 0h3.3v1.6h.1A3.6 3.6 0 0 1 15.7 8c3.5 0 4.2 2.3 4.2 5.2v7.3h-3.4V14c0-1.5 0-3.4-2.1-3.4s-2.4 1.6-2.4 3.3v6.6H9V9Z"/></svg></a>
           </div>
         </div>
       </div>
 
       {/* Main Nav */}
       <nav className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 flex items-center justify-between h-16">
+        <div className="relative w-full px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-3 h-16 sm:h-[88px] lg:h-auto lg:min-h-[88px] lg:py-3">
+
+          <div className="absolute left-3 top-1/2 flex -translate-y-1/2 items-center gap-2 lg:hidden">
+            <button type="button" onClick={() => setMobileMenuOpen(open => !open)} aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'} className="text-black">
+              {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
+            <button onClick={() => setSearchOpen(true)} aria-label="Search" className="text-black">
+              <Search size={22} strokeWidth={2.2} />
+            </button>
+          </div>
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-11 h-11 rounded-full border-2 border-[#C8952A] flex items-center justify-center bg-amber-50">
-              <svg viewBox="0 0 40 40" className="w-8 h-8">
-                <circle cx="20" cy="20" r="18" fill="#C8952A" opacity="0.15"/>
-                <path d="M20 8 Q28 14 28 22 Q28 30 20 34 Q12 30 12 22 Q12 14 20 8Z" fill="#2D5A2E"/>
-                <circle cx="20" cy="20" r="4" fill="#C8952A"/>
-              </svg>
-            </div>
-            <div>
-              <div className="text-[10px] text-gray-400 tracking-widest uppercase leading-none">TM</div>
-              <div className="font-bold text-lg text-[#2C1A0E] leading-tight">organic tattva</div>
-            </div>
+          <Link to="/" className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 flex-shrink-0 lg:static lg:translate-x-0 lg:translate-y-0">
+            <img src={earthMitraLogo} alt="Earth Mitra Farmers" className="h-14 w-14 object-contain sm:h-20 sm:w-20" />
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center gap-5 text-sm font-medium text-[#2C1A0E]">
-            {NAV_LINKS.map((link) => (<div key={link.label} className="relative group" onMouseEnter={() => link.dropdown && setActiveDropdown(link.label)} onMouseLeave={() => setActiveDropdown(null)}>
-                <Link to={link.path} className="flex items-center gap-1 py-1 hover:text-[#2D5A2E] transition-colors whitespace-nowrap">
-                  {link.label}
-                  {link.dropdown && (<svg className="w-3 h-3 opacity-60" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M2 4 L6 8 L10 4"/>
-                    </svg>)}
-                </Link>
-                {link.dropdown && activeDropdown === link.label && link.items && (<div className="absolute top-full left-0 bg-white border border-gray-100 shadow-lg rounded-b-lg min-w-[210px] py-2 z-50">
-                    {link.items.map(item => (<Link key={item} to={link.path} className="block px-4 py-2 text-sm text-[#2C1A0E] hover:bg-gray-50 hover:text-[#2D5A2E]">
-                        {item}
-                      </Link>))}
-                  </div>)}
+          <div className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-x-5 gap-y-1 text-base font-medium text-[#2C1A0E] lg:flex" aria-label="Product categories">
+            {HEADER_CATEGORIES.map((category, index) => (<div key={category.slug} className="relative" onMouseEnter={() => setActiveDropdown(category.slug)} onMouseLeave={() => setActiveDropdown(null)} onFocus={() => setActiveDropdown(category.slug)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setActiveDropdown(null); }} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setActiveDropdown(null); } }}>
+                <div className="flex items-center">
+                  <Link to={categoryPath(category)} onClick={() => setActiveDropdown(null)} className="whitespace-nowrap py-3 hover:text-[#2D5A2E]">{category.name}</Link>
+                  <button type="button" aria-label={`Show ${category.name} subcategories`} aria-expanded={activeDropdown === category.slug} aria-controls={`category-${category.slug}`} onClick={() => setActiveDropdown(current => current === category.slug ? null : category.slug)} className="rounded px-1 py-3 hover:text-[#2D5A2E]"><ChevronDown size={12} className={`transition-transform duration-200 motion-reduce:transition-none ${activeDropdown === category.slug ? 'rotate-180' : ''}`} /></button>
+                </div>
+                <div id={`category-${category.slug}`} inert={activeDropdown !== category.slug} aria-hidden={activeDropdown !== category.slug} data-open={activeDropdown === category.slug} className={`category-dropdown absolute top-full z-50 max-h-[65vh] w-52 overflow-y-auto rounded-b-xl border border-[#E7E1D8] bg-white py-2 shadow-xl ${index >= 6 ? 'right-0' : 'left-0'}`}>
+                  {category.items.map(item => <Link key={item.label} to={categoryPath(category, item)} onClick={() => setActiveDropdown(null)} className="block px-4 py-3 text-sm font-normal hover:bg-[#F5F1EB] hover:text-[#2D5A2E] focus:bg-[#F5F1EB]">{item.label}</Link>)}
+                </div>
               </div>))}
-            <Link to="/about" className="py-1 hover:text-[#2D5A2E] transition-colors whitespace-nowrap">About</Link>
-            <Link to="/contact" className="py-1 hover:text-[#2D5A2E] transition-colors whitespace-nowrap">Contact</Link>
           </div>
 
           {/* Icons */}
-          <div className="flex items-center gap-4">
-            <button onClick={() => setSearchOpen(true)} className="text-[#2C1A0E] hover:text-[#2D5A2E] transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <div className="hidden items-center gap-2 lg:flex">
+            <button onClick={() => setSearchOpen(true)} className="px-1.5 text-black hover:text-[#2D5A2E] transition-colors">
+              <svg className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
             </button>
 
             {/* ADDED (new flow): user icon — opens login popup, or account dropdown after login */}
             {user ? (<div className="relative">
-                <button onClick={() => setAccountOpen(o => !o)} className="w-8 h-8 rounded-full bg-[#3B6FE8] text-white text-sm font-bold flex items-center justify-center hover:opacity-90 transition-opacity">
+                <button onClick={() => setAccountOpen(o => !o)} className="w-10 h-10 rounded-full bg-[#3B6FE8] text-white text-sm font-bold flex items-center justify-center hover:opacity-90 transition-opacity">
                   {user.name[0].toUpperCase()}
                 </button>
                 {accountOpen && (<div className="absolute right-0 top-full mt-2 bg-white border border-gray-100 shadow-xl rounded-xl py-2 w-52 z-50">
@@ -178,14 +213,14 @@ export default function Navbar({ cartItems, onRemoveCart, user, onLogin, onLogou
                       </button>
                     </div>
                   </div>)}
-              </div>) : (<button onClick={openLogin} className="text-[#2C1A0E] hover:text-[#2D5A2E] transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              </div>) : (<button onClick={openLogin} className="px-1.5 text-black hover:text-[#2D5A2E] transition-colors">
+                <svg className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                 </svg>
               </button>)}
 
-            <button onClick={() => setCartOpen(true)} className="relative text-[#2C1A0E] hover:text-[#2D5A2E] transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <button onClick={() => setCartOpen(true)} className="relative px-1.5 text-black hover:text-[#2D5A2E] transition-colors">
+              <svg className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                 <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
               </svg>
               {cartCount > 0 && (<span className="absolute -top-1.5 -right-1.5 bg-[#C0392B] text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
@@ -193,8 +228,49 @@ export default function Navbar({ cartItems, onRemoveCart, user, onLogin, onLogou
                 </span>)}
             </button>
           </div>
+
+          <button onClick={() => setCartOpen(true)} aria-label={`Open cart, ${cartCount} items`} className="absolute right-3 top-1/2 -translate-y-1/2 text-black lg:hidden">
+            <svg className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+            </svg>
+            {cartCount > 0 && <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#C0392B] text-[10px] font-bold text-white">{cartCount}</span>}
+          </button>
         </div>
       </nav>
+
+      {mobileMenuOpen && <div className="fixed inset-0 z-[70] flex lg:hidden" role="dialog" aria-modal="true" aria-label="Mobile menu">
+        <button type="button" className="absolute inset-0 bg-black/30" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu overlay" />
+        <aside className="relative flex h-full w-full max-w-[370px] animate-slide-left flex-col bg-[#F8F3EF] shadow-2xl">
+          <div className="flex h-12 shrink-0 items-center justify-between px-4">
+            <span className="text-xs font-medium tracking-wide text-[#2C1A0E]">MENU</span>
+            <button type="button" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E7DED7] text-[#2C1A0E]">
+              <X size={20} />
+            </button>
+          </div>
+          <nav className="flex-1 overflow-y-auto">
+            {HEADER_CATEGORIES.map(category => (
+              <div key={category.slug} className="border-b border-[#E4DCD6] text-sm text-[#171717]">
+                <button type="button" aria-expanded={mobileCategory === category.slug} aria-controls={`mobile-category-${category.slug}`} onClick={() => setMobileCategory(current => current === category.slug ? null : category.slug)} className="flex w-full items-center justify-between px-4 py-3 text-left font-semibold">{category.name}<ChevronDown size={16} className={`transition-transform duration-200 motion-reduce:transition-none ${mobileCategory === category.slug ? 'rotate-180' : ''}`} /></button>
+                <div id={`mobile-category-${category.slug}`} inert={mobileCategory !== category.slug} aria-hidden={mobileCategory !== category.slug} className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none ${mobileCategory === category.slug ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}><div className="overflow-hidden">
+                <Link to={categoryPath(category)} onClick={() => setMobileMenuOpen(false)} className="block bg-white/50 px-7 py-3 font-medium text-[#2D5A2E]">View all {category.name}</Link>
+                {category.items.map(item => <Link key={item.label} to={categoryPath(category, item)} onClick={() => setMobileMenuOpen(false)} className="block bg-white/50 px-7 py-3 hover:bg-white">{item.label}</Link>)}
+                </div></div>
+              </div>
+            ))}
+            {user ? <Link to="/pages/account" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 border-b border-[#E4DCD6] px-4 py-3 text-sm text-[#171717]">{user.name} / My Account</Link> : <button onClick={() => { setMobileMenuOpen(false); openLogin(); }} className="flex w-full items-center gap-3 border-b border-[#E4DCD6] px-4 py-3 text-left text-sm text-[#171717]"><svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Log in</button>}
+          </nav>
+          <div className="flex h-16 shrink-0 items-center justify-center gap-6 border-b border-[#E4DCD6] text-[#888]">
+            <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1v-2c0-.9.3-1.5 1.6-1.5h1.7V3.6c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.1H7.3V13h2.8v8h3.4Z"/></svg></a>
+            <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1" fill="currentColor" stroke="none"/></svg></a>
+            <a href="#" aria-label="YouTube"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12a31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8ZM9.8 15.3V8.7l5.8 3.3-5.8 3.3Z"/></svg></a>
+            <a href="#" aria-label="LinkedIn"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M5.2 3.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM3.5 9h3.4v11.5H3.5V9Zm5.5 0h3.3v1.6h.1A3.6 3.6 0 0 1 15.7 8c3.5 0 4.2 2.3 4.2 5.2v7.3h-3.4V14c0-1.5 0-3.4-2.1-3.4s-2.4 1.6-2.4 3.3v6.6H9V9Z"/></svg></a>
+          </div>
+          <a href="#" onClick={() => setMobileMenuOpen(false)} className="mb-5 ml-5 mt-12 inline-flex w-fit items-center gap-2 rounded bg-[#075B4B] px-3 py-2.5 text-xs font-semibold text-white shadow-sm">
+            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.347-.57-.347"/></svg>
+            Order From WhatsApp
+          </a>
+        </aside>
+      </div>}
 
       {/* Rewards Tab */}
       <div className="fixed right-0 top-1/2 -translate-y-1/2 z-40">

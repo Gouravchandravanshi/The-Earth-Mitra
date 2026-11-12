@@ -1,3 +1,193 @@
+import cowGheeImage from '../assets/Product Images/Ghee.webp';
+import cowGheeLifestyleImage from '../assets/Product Images/1.webp';
+import cowGheeServingImage from '../assets/Product Images/5_1.webp';
+import buffaloGheeImage from '../assets/Product Images/Buffalo-Ghee.webp';
+import buffaloGheeLifestyleImage from '../assets/Product Images/Buffelo-Ghee-500ml-2_4e610297-a308-4d0c-bfd7-be0dc31bf7a4.webp';
+import buffaloGheeDetailsImage from '../assets/Product Images/Buffalo-Ghee-500ml.-1png_d6e1aecf-3460-4ef7-854f-b6823010766f.webp';
+import mustardOilImage from '../assets/Product Images/First-Image-1.webp';
+import mustardOilPackImage from '../assets/Product Images/2_2_4a8e7079-8e99-45aa-8102-ca46ccd7157c.webp';
+import mustardOilLifestyleImage from '../assets/Product Images/7_2.webp';
+import groundnutOilImage from '../assets/Product Images/First-Image-2.webp';
+import groundnutOilLifestyleImage from '../assets/Product Images/4_1_6a8bf8e5-22a5-4d16-8317-2699ab2b87e9.webp';
+import groundnutOilPackImage from '../assets/Product Images/8_d44dc951-1e4f-42ad-9523-1383e46dfa40.webp';
+import earthMitraGhee from '../assets/Product Images/earthmitra_ghee.jpeg';
+
+export const PRODUCTS = [
+    {
+        id: 1,
+        slug: 'organic-cold-pressed-mustard-oil',
+        name: 'Cold Pressed Mustard Oil - 3Ltr',
+        price: 1220,
+        originalPrice: 1525,
+        rating: 4.4,
+        reviews: 218,
+        save: null,
+        category: 'Masala, Oil & More',
+        tag: null,
+        tagColor: '#E8A020',
+        img: mustardOilImage,
+        images: [earthMitraGhee, mustardOilImage, mustardOilPackImage, mustardOilLifestyleImage],
+        description: 'Pure cold-pressed mustard oil, rich in taste, tested for 250+ pesticides. No chemical fumigation.',
+        weight: '3 L',
+        showReviews: false,
+    },
+    {
+        id: 2,
+        slug: 'natural-tattva-makhana',
+        name: 'NATURAL TATTVA Makhana',
+        price: 579,
+        originalPrice: null,
+        rating: 4.5,
+        reviews: 347,
+        save: null,
+        category: 'Tea, Coffee & Healthy',
+        tag: null,
+        tagColor: null,
+        img: 'https://images.unsplash.com/photo-1578129377420-4795675e892e?w=500&h=500&fit=crop&auto=format',
+        description: 'Upgrade to healthy snacking with NATURAL TATTVA Makhana. Light, crispy, and nutritious.',
+        weight: '200 g',
+    },
+    {
+        id: 3,
+        slug: 'organic-arhar-tur-dal',
+        name: 'Organic Arhar (Tur) Dal',
+        price: 135,
+        originalPrice: 165,
+        rating: 4.5,
+        reviews: 512,
+        save: 18,
+        category: 'Atta, Rice & Dal',
+        tag: 'NO CHEMICAL FUMIGATION',
+        tagColor: '#2D7A3A',
+        img: 'https://images.unsplash.com/photo-1612869538502-b5baa439abd7?w=500&h=500&fit=crop&auto=format',
+        description: 'Unpolished, rich in protein, tested for 250+ pesticides. 100% organic arhar dal.',
+        weight: '500 g',
+    },
+    {
+        id: 4,
+        slug: 'organic-traditional-basmati-rice',
+        name: 'Organic Traditional Basmati Rice',
+        price: 280,
+        originalPrice: 299,
+        rating: 3.0,
+        reviews: 89,
+        save: 6,
+        category: 'Atta, Rice & Dal',
+        tag: null,
+        tagColor: null,
+        img: 'https://images.unsplash.com/photo-1704916029292-ec7b5976204c?w=500&h=500&fit=crop&auto=format',
+        description: 'Long grain, aged and aromatic organic basmati rice. No chemical fumigation, no pesticides.',
+        weight: '1 KG',
+    },
+    {
+        id: 5,
+        slug: 'organic-groundnut-oil',
+        name: 'Organic Groundnut Oil - 3Ltr',
+        price: 1560,
+        originalPrice: 1950,
+        rating: 4.4,
+        reviews: 134,
+        save: 20,
+        category: 'Masala, Oil & More',
+        tag: null,
+        tagColor: null,
+        img: groundnutOilImage,
+        images: [groundnutOilImage, groundnutOilLifestyleImage, groundnutOilPackImage],
+        description: 'Pure organic groundnut oil, cold pressed, no preservatives.',
+        weight: '3 L',
+        showReviews: false,
+    },
+    {
+        id: 6,
+        slug: 'organic-brown-sugar',
+        name: 'Organic Brown Sugar',
+        price: 125,
+        originalPrice: 149,
+        rating: 4.0,
+        reviews: 76,
+        save: 16,
+        category: 'Masala, Oil & More',
+        tag: null,
+        tagColor: null,
+        img: 'https://images.unsplash.com/photo-1627735483792-233bf632619b?w=500&h=500&fit=crop&auto=format',
+        description: 'Unrefined, unprocessed organic brown sugar with natural molasses.',
+        weight: '500 g',
+    },
+    {
+        id: 7,
+        slug: 'organic-rock-salt',
+        name: 'Himalayan Rock Salt',
+        price: 89,
+        originalPrice: null,
+        rating: 4.6,
+        reviews: 298,
+        save: null,
+        category: 'Masala, Oil & More',
+        tag: null,
+        tagColor: null,
+        img: 'https://images.unsplash.com/photo-1641301553499-9a0ff924fcb5?w=500&h=500&fit=crop&auto=format',
+        description: 'Pure Himalayan rock salt, mineral-rich, unrefined and natural.',
+        weight: '1 KG',
+    },
+    {
+        id: 8,
+        slug: 'organic-sunflower-oil',
+        name: 'Organic Sunflower Oil',
+        price: 260,
+        originalPrice: 299,
+        rating: 4.1,
+        reviews: 155,
+        save: 13,
+        category: 'Masala, Oil & More',
+        tag: null,
+        tagColor: null,
+        img: 'https://images.unsplash.com/photo-1610725664285-7c57e6eeac3f?w=500&h=500&fit=crop&auto=format',
+        description: 'Light and healthy organic sunflower oil for everyday cooking.',
+        weight: '1 L',
+    },
+    {
+        id: 9,
+        slug: 'natural-tattva-a2-cow-ghee',
+        name: 'Natural Tattva A2 Cow Ghee',
+        price: 823.2,
+        originalPrice: 1029,
+        rating: 4.5,
+        reviews: 0,
+        save: 20,
+        category: 'Oils & Ghee',
+        tag: null,
+        tagColor: null,
+        img: cowGheeImage,
+        images: [cowGheeImage, cowGheeLifestyleImage, cowGheeServingImage],
+        description: 'A2 Cow Ghee made using milk from indigenous cows and the traditional Bilona method.',
+        weight: '500 ml',
+        showReviews: false,
+    },
+    {
+        id: 10,
+        slug: 'natural-tattva-buffalo-ghee-500ml',
+        name: 'Natural Tattva Buffalo Ghee - 500ML',
+        price: 1090,
+        originalPrice: null,
+        rating: 4.8,
+        reviews: 0,
+        save: null,
+        category: 'Oils & Ghee',
+        tag: null,
+        tagColor: null,
+        img: buffaloGheeImage,
+        images: [buffaloGheeImage, buffaloGheeLifestyleImage, buffaloGheeDetailsImage],
+        description: 'Buffalo Ghee traditionally prepared using the Bilona method.',
+        weight: '500 ml',
+        showReviews: false,
+    },
+];
+export const BESTSELLERS = [
+    PRODUCTS.find(product => product.id === 9),
+    PRODUCTS.find(product => product.id === 10),
+    PRODUCTS.find(product => product.id === 1),
+    PRODUCTS.find(product => product.id === 5),
+];
 export const BLOGS = [
     {
         id: 1,
@@ -35,7 +225,7 @@ export const BLOGS = [
         title: 'Besan Ladoo Recipe: How to Make Traditional Besan Laddu at Home',
         date: 'Jul 31 2026',
         category: 'Recipes',
-        excerpt: "Ingredients 500 gms â€“ Dahi 2 pcs â€“ Onions, chopped 4 pcs â€“ Green chillies, chopped 1/2 tsp â€“ Salt 75 gms â€“ Cheese 1 tsp â€“ Organic Tattva Besan...",
+        excerpt: "Ingredients 500 gms – Dahi 2 pcs – Onions, chopped 4 pcs – Green chillies, chopped 1/2 tsp – Salt 75 gms – Cheese 1 tsp – Organic Tattva Besan...",
         img: 'https://images.unsplash.com/photo-1635952346904-95f2ccfcd029?w=700&h=450&fit=crop&auto=format',
         readTime: '3 min read',
     },
@@ -45,7 +235,7 @@ export const BLOGS = [
         title: 'Dahi Saunf Tikki',
         date: 'May 24 2024',
         category: 'Recipes',
-        excerpt: 'Ingredients 500 gms â€“ Dahi 2 pcs â€“ Onions, chopped 4 pcs â€“ Green chillies, chopped 1/2 tsp â€“ Salt 75 gms â€“ Cheese 1 tsp â€“ Organic...',
+        excerpt: 'Ingredients 500 gms – Dahi 2 pcs – Onions, chopped 4 pcs – Green chillies, chopped 1/2 tsp – Salt 75 gms – Cheese 1 tsp – Organic...',
         img: 'https://images.unsplash.com/photo-1601941187195-182cd1e7fc5c?w=700&h=450&fit=crop&auto=format',
         readTime: '3 min read',
     },
@@ -65,7 +255,7 @@ export const COLLECTIONS = [
         id: 1,
         slug: 'atta-rice-dal',
         name: 'Atta, Rice & Dal',
-        description: 'Staple grains, pulses, and flours â€” the foundation of every Indian kitchen.',
+        description: 'Staple grains, pulses, and flours — the foundation of every Indian kitchen.',
         productCount: 24,
         img: 'https://images.unsplash.com/photo-1704916029292-ec7b5976204c?w=700&h=480&fit=crop&auto=format',
         color: '#FFF8E7',
@@ -95,7 +285,7 @@ export const COLLECTIONS = [
         id: 4,
         slug: 'combo-deals',
         name: 'Combo Deals',
-        description: 'Curated value bundles â€” save more when you shop smarter.',
+        description: 'Curated value bundles — save more when you shop smarter.',
         productCount: 12,
         img: 'https://images.unsplash.com/photo-1612869538502-b5baa439abd7?w=700&h=480&fit=crop&auto=format',
         color: '#FFF0F0',
@@ -122,6 +312,125 @@ export const COLLECTIONS = [
         accent: '#D4A017',
     },
 ];
+/* ─── Trusted By Millions — community/reel style strip ────── */
+export const REELS = [
+    {
+        id: 1,
+        img: 'https://images.unsplash.com/photo-1641301553499-9a0ff924fcb5?w=500&h=800&fit=crop&auto=format',
+        views: null,
+        caption: '1/4 tsp Rock Salt',
+        addToCart: true,
+    },
+    {
+        id: 2,
+        img: 'https://images.unsplash.com/photo-1578129377420-4795675e892e?w=500&h=800&fit=crop&auto=format',
+        views: '12k',
+        caption: null,
+        addToCart: true,
+    },
+    {
+        id: 3,
+        img: 'https://images.unsplash.com/photo-1612869538502-b5baa439abd7?w=500&h=800&fit=crop&auto=format',
+        views: '1.5k',
+        caption: null,
+        addToCart: true,
+    },
+    {
+        id: 4,
+        img: 'https://images.unsplash.com/photo-1635952346904-95f2ccfcd029?w=500&h=800&fit=crop&auto=format',
+        views: '3.7k',
+        caption: null,
+        addToCart: true,
+    },
+    {
+        id: 5,
+        img: 'https://images.unsplash.com/photo-1704916029292-ec7b5976204c?w=500&h=800&fit=crop&auto=format',
+        views: '1k',
+        caption: 'How do we know what ingredients are the best source for our body?',
+        addToCart: false,
+    },
+];
+/* ─── Exclusive Combos ─────────────────────────────── */
+export const COMBOS = [
+    {
+        id: 1,
+        slug: 'rasoi-essentials-pack',
+        name: 'Rasoi Essentials Pack - Chakki Atta (Whole Wheat), Arhar Dal, Mustard Oil & Basmati Rice',
+        price: 2903,
+        rating: 4.5,
+        reviews: 64,
+        img: 'https://images.unsplash.com/photo-1704916029292-ec7b5976204c?w=500&h=500&fit=crop&auto=format',
+    },
+    {
+        id: 2,
+        slug: 'mithai-master-pack',
+        name: 'Mithai Master Pack - A2 Cow Ghee – 500ml, Organic Suji, Kashmiri Kesar & Makhana',
+        price: 3228,
+        rating: 4.8,
+        reviews: 112,
+        img: 'https://images.unsplash.com/photo-1578129377420-4795675e892e?w=500&h=500&fit=crop&auto=format',
+    },
+    {
+        id: 3,
+        slug: 'healthy-snacking-pack',
+        name: 'Healthy Snacking Pack - Makhana – 200g, Quinoa Flour 1kg, Wild Forest Honey & Cashews',
+        price: 3149,
+        rating: 4.7,
+        reviews: 87,
+        img: 'https://images.unsplash.com/photo-1627735483792-233bf632619b?w=500&h=500&fit=crop&auto=format',
+    },
+    {
+        id: 4,
+        slug: 'shubh-upahaar-hamper',
+        name: 'Shubh Upahaar Hamper (Premium Gifting) - Mixed Dry Fruits, Cow Ghee, Green Tea & Honey',
+        price: 3069,
+        rating: 4.1,
+        reviews: 39,
+        img: 'https://images.unsplash.com/photo-1601941187195-182cd1e7fc5c?w=500&h=500&fit=crop&auto=format',
+    },
+];
+/* ─── Product detail page: reusable dummy content ──── */
+export const OFFERS = [
+    { code: 'WELCOME10', title: 'Flat 10% OFF', desc: 'Get FLAT 10% OFF on orders above ₹999 with code' },
+    { code: 'FESTIVE10', title: 'Flat 10% OFF + 1 Freebie', desc: 'Get FLAT 10% OFF & 1 freebie on orders above ₹1199 with code' },
+    { code: 'FESTIVE15', title: 'Flat 15% OFF', desc: 'Get FLAT 15% OFF on orders above ₹1799 with code' },
+];
+export const FSSAI_NUMBER = '10019051003029';
+export const MANUFACTURER_INFO = 'Organic Tattva Pvt. Ltd., Plot 45, Sector 6, IMT Manesar, Gurugram, Haryana 122051, India.';
+export const ALLERGEN_INFO = 'Manufactured in a facility that also processes nuts, gluten, soy and dairy. Please refer to the product packaging for the most accurate allergen information.';
+export const STORAGE_INFO = 'Store in a cool, dry place away from direct sunlight. Keep the container tightly sealed after opening to retain freshness.';
+export const IDEAL_FOR = 'Everyday cooking, festive gifting, corporate hampers, and healthy snacking for the whole family.';
+export const PESTICIDE_RISKS = [
+    { icon: 'dna', label: 'Hormone related ailments' },
+    { icon: 'activity', label: 'Headaches, nausea, diarrhea, etc.' },
+    { icon: 'ribbon', label: 'Cancer' },
+    { icon: 'brain', label: 'Weakened immune and nervous system' },
+    { icon: 'heart-pulse', label: 'Weakened reproductive health' },
+];
+export const FARM_TO_PLATE = [
+    { icon: 'sprout', title: 'Organic Farm', desc: 'From chemical free soil to hand-picked grains, we ensure high standards for our products.' },
+    { icon: 'factory', title: 'Hygienic Factory', desc: 'Our equipment is a combination of traditional and state-of-art machinery.' },
+    { icon: 'cooking-pot', title: 'Your Kitchen', desc: 'Enjoy food that is hygienically packed and yet retains the benefits of organic food.' },
+];
+export function getGallery(product) {
+    const others = PRODUCTS.filter(p => p.id !== product.id).slice(0, 3).map(p => p.img);
+    return [product.img, ...others];
+}
+export function getFaqs(product) {
+    return [
+        { q: `What makes ${product.name} different from regular products?`, a: `${product.name} is grown without synthetic pesticides, tested for 250+ pesticide residues, and processed without chemical fumigation — so you get the same taste with none of the chemical load.` },
+        { q: 'Is this certified organic?', a: 'Yes. Every batch is certified under India Organic (Jaivik Bharat) and USDA Organic standards, with lab reports available on request.' },
+        { q: 'How should I store it after opening?', a: STORAGE_INFO },
+        { q: 'Is this suitable for gifting?', a: 'Yes, it travels well and makes a thoughtful, health-conscious gift for festivals, housewarmings, or corporate hampers.' },
+    ];
+}
+export function getReviews(product) {
+    return [
+        { id: 1, name: 'Deepak Chauhan', initial: 'D', color: '#C8952A', rating: 4, date: 'Aug 20, 2026', title: 'Simple and dependable for everyday use', body: `We tried ${product.name} first based on a friend's recommendation. The clean packaging made it easy to get a consistent result. It does the job nicely for everyday use and feels dependable.`, likes: 4, dislikes: 0 },
+        { id: 2, name: 'Pooja Ghosh', initial: 'P', color: '#2D5A2E', rating: 5, date: 'Aug 16, 2026', title: 'A handy choice for festive cooking', body: `I found the quality consistent and the taste noticeably better than regular store-bought alternatives. Packaging feels premium and the product stayed fresh. Will reorder.`, likes: 6, dislikes: 0 },
+        { id: 3, name: 'Raj Nair', initial: 'R', color: '#5B2D8A', rating: 4, date: 'Aug 16, 2026', title: 'Good quality, reliable delivery', body: `Have been using this for a couple of months now. Quality feels consistent batch to batch and delivery has always been on time. Happy with the purchase.`, likes: 2, dislikes: 0 },
+    ];
+}
 export const NAV_LINKS = [
     { label: 'Shravan Special', path: '/collections/shravan-special', dropdown: false },
     { label: 'Atta, Rice & Dal', path: '/collections/atta-rice-dal', dropdown: true, items: ['Organic Pulses & Dal', 'Rice & Rice Products', 'Organic Flour (Atta & Suji)'] },

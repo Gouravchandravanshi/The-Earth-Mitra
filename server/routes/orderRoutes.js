@@ -7,11 +7,15 @@ const {
   getOrderById,
   getAllOrders,
   updateOrderStatus,
+  createGuestRazorpayOrder,
+  verifyGuestPayment,
 } = require("../controllers/orderController");
-const { protect, adminOnly } = require("../middlewares/auth");
+const { protect, optionalProtect, adminOnly } = require("../middlewares/auth");
 
 router.post("/create-razorpay-order", protect, createRazorpayOrder);
 router.post("/verify-payment", protect, verifyPaymentAndCreateOrder);
+router.post("/guest/create-razorpay-order", optionalProtect, createGuestRazorpayOrder);
+router.post("/guest/verify-payment", verifyGuestPayment);
 router.get("/my-orders", protect, getMyOrders);
 router.get("/all", protect, adminOnly, getAllOrders);
 router.get("/", protect, adminOnly, getAllOrders);

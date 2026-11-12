@@ -1,5 +1,5 @@
 const S = ['Active', 'Draft'], num = 'number'
-const f = (l, t, o, span, n) => ({ l, t, o, span, n })
+const f = (l, t, o, span, n, required = false) => ({ l, t, o, span, n, required })
 export const dash = {
   stats: [['Revenue', '₹4,82,300', '+12.4% vs last month'], ['Orders', '1,284', '+8.1%'], ['Customers', '3,902', '+5.6%'], ['Low stock items', '14', 'Needs attention']],
   bars: [40, 55, 35, 70, 60, 85, 75],
@@ -14,7 +14,7 @@ export const lists = {
     rows: [['Personal care', 'personal-care', '48', 'Active'], ['Home', 'home', '36', 'Active'], ['Kitchen', 'kitchen', '21', 'Draft']] },
   inventory: { api: { path: '/products/admin?page=1&limit=100', key: 'products', type: 'inventory', map: p => [p.name, p.sku || '—', p.stock, p.stock <= 0 ? 'Out of stock' : p.stock <= 10 ? 'Low stock' : 'In stock'] }, title: 'Inventory', sub: 'Click a row to adjust stock', cols: ['Product', 'SKU', 'On hand', 'Status'], panel: { title: 'Adjust stock', cta: 'Update stock', fields: [f('Change (+/-)', num, null, false, 'change'), f('Reason', 'select', ['Restock', 'Damaged', 'Correction'], false, 'reason'), f('Note', 'area', null, true, 'note')] },
     rows: [['Neem Comb', 'EM-001', '120', 'In stock'], ['Bamboo Toothbrush Set', 'EM-014', '8', 'Low stock'], ['Jute Tote Bag', 'EM-032', '0', 'Out of stock']] },
-  orders: { api: { path: '/orders/all', key: 'orders', map: o => ['#' + (o.orderNumber || o._id.slice(-6)), o.user?.name || o.user?.email || '—', new Date(o.createdAt).toLocaleDateString(), '₹' + o.totalAmount, o.paymentInfo?.status || 'pending', o.status === 'processing' ? 'Pending' : o.status === 'cancelled' ? 'Cancelled' : o.status] }, title: 'Orders', tabs: ['Pending', 'Shipped', 'Delivered', 'Cancelled'], cols: ['Order', 'Customer', 'Date', 'Total', 'Payment', 'Status'], rowTo: r => `/orders/${r[0].slice(1)}`,
+  orders: { api: { path: '/orders/all', key: 'orders', map: o => ['#' + (o.orderNumber || o._id.slice(-8).toUpperCase()), o.user?.name || o.user?.email || o.guestName || o.guestEmail || 'Guest customer', new Date(o.createdAt).toLocaleDateString(), '₹' + o.totalAmount, o.paymentInfo?.status || 'pending', o.status === 'processing' ? 'Pending' : o.status === 'cancelled' ? 'Cancelled' : o.status] }, title: 'Orders', tabs: ['Pending', 'Shipped', 'Delivered', 'Cancelled'], cols: ['Order', 'Customer', 'Date', 'Total', 'Payment', 'Status'], rowTo: (r, order) => order?._id ? `/orders/${order._id}` : null,
     rows: [['#1042', 'Aarav Sharma', '28 Sep', '₹1,240', 'Paid', 'Pending'], ['#1041', 'Neha Verma', '27 Sep', '₹860', 'Paid', 'Shipped'], ['#1040', 'Rohan Jain', '26 Sep', '₹2,150', 'Paid', 'Delivered'], ['#1039', 'Isha Patel', '25 Sep', '₹499', 'Failed', 'Cancelled']] },
   returns: { title: 'Returns & Refunds', cols: ['Request', 'Order', 'Reason', 'Amount', 'Status'], panel: { side: true, title: 'Return request', cta: 'Approve refund', fields: [f('Resolution', 'select', ['Refund', 'Replace', 'Reject'], true), f('Refund amount', num), f('Note', 'area', null, true)] },
     rows: [['RR-21', '#1038', 'Damaged item', '₹349', 'Open'], ['RR-20', '#1031', 'Wrong size', '₹899', 'Approved'], ['RR-19', '#1027', 'Not needed', '₹199', 'Rejected']] },
@@ -33,11 +33,13 @@ export const lists = {
 }
 export const forms = {
   'products/new': { api: { url: '/products', kind: 'product' }, title: 'Add product', save: 'Create product', sections: [
-    { t: 'Basic info', f: [f('Name', 'text', null, true, 'name'), f('Description', 'area', null, true, 'description'), f('Category', 'select', [], false, 'category'), f('SKU', 'text', null, false, 'sku'), f('Price (₹)', num, null, false, 'price'), f('Discount price (₹)', num, null, false, 'discountPrice'), f('Stock', num, null, false, 'stock')] },
-    { t: 'Eco details', f: [f('Origin', 'text', null, false, 'origin'), f('Certifications (comma separated)', 'text', null, false, 'certifications'), f('Eco certified', 'check', null, false, 'eco_certified')] }, { t: 'Images', f: [f('Upload images', 'file', null, true, 'images')] }] },
-  'collections/new': { title: 'Create collection', sections: [
-    { t: 'Details', f: [f('Title', 'text', null, true), f('Description', 'area', null, true), f('Type', 'select', ['Manual', 'Automated'], true)] },
-    { t: 'Products (manual)', picker: true }, { t: 'Conditions (automated)', f: [f('Match', 'select', ['All conditions', 'Any condition']), f('Field', 'select', ['Tag', 'Price', 'Category']), f('Operator', 'select', ['is equal to', 'is less than', 'contains']), f('Value')] }] },
+    { t: 'Basic info', f: [f('Name', 'text', null, true, 'name', true), f('Description', 'area', null, true, 'description', true), f('Category', 'select', [], false, 'category', true), f('SKU', 'text', null, false, 'sku'), f('MRP (₹)', num, null, false, 'mrp', true), f('Overall price (₹)', num, null, false, 'price', true), f('Discounted price (₹)', num, null, false, 'discountPrice'), f('Stock', num, null, false, 'stock')] },
+    { t: 'Product details', f: [f('Pack contains (comma separated)', 'text', null, false, 'packContains'), f('Ideal for making (comma separated)', 'text', null, false, 'suitableUses')] },
+    { t: 'Eco details', f: [f('Origin', 'text', null, false, 'origin'), f('Certifications (comma separated)', 'text', null, false, 'certifications'), f('Eco certified', 'check', null, false, 'eco_certified')] },
+    { t: 'Allergen information', f: [f('Status', 'select', [{ value: 'unknown', label: 'Not specified' }, { value: 'contains', label: 'Contains allergens' }, { value: 'none_confirmed', label: 'No known allergens' }], false, 'allergenStatus'), f('Allergens (comma separated)', 'text', null, false, 'allergens'), f('Warnings (comma separated)', 'text', null, true, 'allergenWarnings')] },
+    { t: 'Storage conditions', f: [f('Instructions', 'area', null, true, 'storageInstructions'), f('Minimum temperature (°C)', num, null, false, 'minTemperatureC'), f('Maximum temperature (°C)', num, null, false, 'maxTemperatureC')] },
+    { t: 'Frequently asked questions', f: [f('One question and answer per line, separated with |', 'area', null, true, 'faqs')] },
+    { t: 'Images', f: [f('Upload images', 'file', null, true, 'images')] }] },
   'coupons/new': { api: { url: '/coupons', json: true, kind: 'coupon' }, title: 'Create coupon', sections: [{ t: 'Coupon', f: [f('Code', 'text', null, false, 'code'), f('Type', 'select', ['percent', 'flat'], false, 'discountType'), f('Value', num, null, false, 'discountValue'), f('Min order (₹)', num, null, false, 'minOrderAmount'), f('Usage limit', num, null, false, 'usageLimit'), f('Expiry', 'datetime-local', null, false, 'expiresAt'), f('Active', 'check', null, false, 'isActive')] }] },
 }
 const refund = { l: 'Refund', v: 'ghost', text: 'Refund this order to the original payment method.', fields: [f('Amount (₹)', num), f('Reason', 'text')] }

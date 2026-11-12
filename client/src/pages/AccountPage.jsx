@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 // CHANGED: added useParams so /pages/account/:tab can open the matching tab
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
+import { getMyOrders } from '../api';
+import { RowsSkeleton } from '../components/Skeleton';
 /* ADDED (new flow): Account area after login — Overview, My Orders, Address (add new address) and Profile tabs. */
 /* ─── Left Sidebar ───────────────────────────────── */
-function Sidebar({ active, onChange, user, onLogout }) {
+function Sidebar({ active, onChange, user, onLogout, ordersCount = 0 }) {
     const navigate = useNavigate();
     return (<aside className="w-full lg:w-72 flex-shrink-0">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -26,7 +28,7 @@ function Sidebar({ active, onChange, user, onLogout }) {
         {/* Orders count */}
         <div className="px-5 py-3 border-b border-gray-100">
           <div className="border border-gray-200 rounded-lg px-4 py-2 text-center w-28">
-            <div className="text-xl font-bold text-[#2C1A0E]">0</div>
+            <div className="text-xl font-bold text-[#2C1A0E]">{ordersCount}</div>
             <div className="text-xs text-gray-500">Total Orders</div>
           </div>
         </div>
@@ -65,14 +67,19 @@ function Sidebar({ active, onChange, user, onLogout }) {
     </aside>);
 }
 /* ─── Overview Tab ───────────────────────────────── */
-function OverviewTab({ onNavigate }) {
+function OverviewTab({ onNavigate, orders, ordersLoading }) {
+    const latestOrder = orders[0];
     return (<div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <h2 className="text-xl font-bold text-[#2C1A0E] mb-6">Overview</h2>
 
       {/* My Orders section */}
       <div className="mb-6">
         <h3 className="font-semibold text-[#2C1A0E] mb-4">My Orders</h3>
-        <div className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl">
+        {ordersLoading ? <RowsSkeleton count={1} /> : latestOrder ? <button onClick={() => onNavigate('orders')} className="flex w-full items-center gap-4 rounded-xl border border-gray-100 p-4 text-left transition hover:bg-gray-50">
+          <div className="flex size-16 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100"><span className="text-xl font-bold text-[#2D5A2E]">{orders.length}</span></div>
+          <div className="flex-1"><p className="text-sm font-semibold text-[#2C1A0E]">Latest order #{latestOrder._id.slice(-8).toUpperCase()}</p><p className="mt-1 text-xs capitalize text-gray-500">{latestOrder.status} · Payment {latestOrder.paymentInfo?.status || 'pending'} · ₹{Number(latestOrder.totalAmount || 0).toLocaleString('en-IN')}</p></div>
+          <span className="text-xs font-semibold text-blue-600">View orders</span>
+        </button> : <div className="flex items-center gap-4 rounded-xl border border-gray-100 p-4">
           <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
             <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
               <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
@@ -85,7 +92,7 @@ function OverviewTab({ onNavigate }) {
               <Link to="/products" className="text-blue-500 hover:underline font-medium">Shop Now</Link>
             </p>
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* Saved Addresses section */}
@@ -111,21 +118,34 @@ function OverviewTab({ onNavigate }) {
     </div>);
 }
 /* ─── My Orders Tab ──────────────────────────────── */
-function OrdersTab() {
+function OrdersTab({ orders, loading, error }) {
     return (<div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <h2 className="text-xl font-bold text-[#2C1A0E] mb-6">My Orders</h2>
-      <div className="flex flex-col items-center justify-center py-16 text-center">
+      {loading ? <RowsSkeleton label="Loading your orders…" /> : error ? <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</p> : orders.length ? <div className="space-y-4">
+        {orders.map(order => <article key={order._id} className="rounded-xl border border-gray-200 p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-3">
+            <div><p className="font-semibold text-[#2C1A0E]">Order #{order._id.slice(-8).toUpperCase()}</p><p className="mt-1 text-xs text-gray-500">Placed {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p></div>
+            <div className="text-right"><span className="inline-block rounded-full bg-green-50 px-3 py-1 text-xs font-semibold capitalize text-green-800">Payment {order.paymentInfo?.status || 'pending'}</span><p className="mt-1 text-xs capitalize text-gray-500">Order {order.status}</p></div>
+          </div>
+          <div className="space-y-3 py-4">{order.items?.map((item, index) => <div key={`${item.product?._id || item.product || item.name}-${index}`} className="flex items-center gap-3">
+            <img src={item.image || item.product?.images?.[0]?.url || ''} alt={item.name || item.product?.name || 'Product'} className="size-14 rounded-lg border border-gray-100 bg-gray-50 object-cover"/>
+            <div className="min-w-0 flex-1"><p className="line-clamp-2 text-sm font-medium text-[#2C1A0E]">{item.name || item.product?.name || 'Product'}</p><p className="text-xs text-gray-500">Qty {item.qty} · ₹{Number(item.price || 0).toLocaleString('en-IN')}</p></div>
+            <span className="shrink-0 text-sm font-semibold text-[#2C1A0E]">₹{(Number(item.price || 0) * Number(item.qty || 0)).toLocaleString('en-IN')}</span>
+          </div>)}</div>
+          <div className="flex items-end justify-between border-t border-gray-100 pt-3"><div className="text-xs text-gray-500">Delivering to {order.shippingAddress?.city || 'your address'}{order.shippingAddress?.pincode ? `, ${order.shippingAddress.pincode}` : ''}</div><div className="text-right text-sm"><span className="mr-2 text-gray-500">Total</span><strong className="text-base text-[#2C1A0E]">₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}</strong></div></div>
+        </article>)}
+      </div> : <div className="flex flex-col items-center justify-center py-16 text-center">
         <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
           <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
             <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
           </svg>
         </div>
         <h3 className="font-bold text-[#2C1A0E] mb-2">No Past Orders Yet</h3>
-        <p className="text-sm text-gray-500 mb-5">Start your first order to see it here.</p>
+        <p className="mb-5 text-sm text-gray-500">No orders are linked to this account yet. Guest orders appear here when their checkout email matches your signed-in email.</p>
         <Link to="/products" className="bg-blue-600 text-white font-semibold px-6 py-2.5 rounded-lg text-sm hover:bg-blue-700 transition-colors">
           Explore Products
         </Link>
-      </div>
+      </div>}
     </div>);
 }
 /* ─── Address Tab ────────────────────────────────── */
@@ -252,9 +272,30 @@ export default function AccountPage() {
     const { tab } = useParams();
     const VALID_TABS = ['overview', 'orders', 'address', 'profile'];
     const [activeTab, setActiveTab] = useState(VALID_TABS.includes(tab) ? tab : 'overview');
+    const [orders, setOrders] = useState([]);
+    const [ordersLoading, setOrdersLoading] = useState(true);
+    const [ordersError, setOrdersError] = useState('');
     useEffect(() => {
         setActiveTab(VALID_TABS.includes(tab) ? tab : 'overview');
     }, [tab]);
+    useEffect(() => {
+        let active = true;
+        if (!user) {
+            setOrders([]);
+            setOrdersLoading(false);
+            return () => { active = false; };
+        }
+        setOrdersLoading(true);
+        setOrdersError('');
+        getMyOrders().then(result => {
+            if (active) setOrders(Array.isArray(result) ? result : []);
+        }).catch(error => {
+            if (active) setOrdersError(error.message || 'Could not load your orders.');
+        }).finally(() => {
+            if (active) setOrdersLoading(false);
+        });
+        return () => { active = false; };
+    }, [user?._id]);
     if (!user) {
         return (<div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="bg-white rounded-2xl p-10 shadow-md text-center max-w-sm mx-4">
@@ -270,10 +311,10 @@ export default function AccountPage() {
     return (<div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-5xl mx-auto px-4 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-6">
-          <Sidebar active={activeTab} onChange={setActiveTab} user={user} onLogout={logout}/>
+          <Sidebar active={activeTab} onChange={setActiveTab} user={user} onLogout={logout} ordersCount={orders.length}/>
           <div className="flex-1">
-            {activeTab === 'overview' && <OverviewTab onNavigate={setActiveTab}/>}
-            {activeTab === 'orders' && <OrdersTab />}
+            {activeTab === 'overview' && <OverviewTab onNavigate={setActiveTab} orders={orders} ordersLoading={ordersLoading}/>}
+            {activeTab === 'orders' && <OrdersTab orders={orders} loading={ordersLoading} error={ordersError}/>}
             {activeTab === 'address' && <AddressTab />}
             {activeTab === 'profile' && <ProfileTab user={user}/>}
           </div>

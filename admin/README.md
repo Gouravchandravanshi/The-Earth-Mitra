@@ -1,14 +1,16 @@
 # Earth Mitra Admin
 
-This standalone Vite app runs at `http://localhost:5174` and talks to the Express API in `server/`.
+This Vite app runs at `http://localhost:5174/admin/` and talks to the Express API in `server/`.
 
 ## Run locally
 
 1. Start the server from `server/` with `npm run dev` and make sure its `.env` has `MONGO_URI`, `JWT_SECRET`, and `CLIENT_URL=http://localhost:5173` (development CORS also allows this admin app on port 5174). For separate production storefront/admin origins, list both in `CLIENT_URLS`.
 2. Create an admin account once from `server/`: set `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` in `server/.env`, then run `npm run create-admin`. Remove the temporary `ADMIN_*` values afterward.
-3. In `admin/`, run `npm install` and `npm run dev`, then open `http://localhost:5174/login` and use that admin account's email and password.
+3. In `admin/`, run `npm install` and `npm run dev`, then open `http://localhost:5174/admin/login` and use that admin account's email and password.
 
-The API uses the server's HTTP-only `token` cookie. Keep the client and API on the same hostname (`localhost` or `127.0.0.1`) so the browser sends the cookie. `VITE_API_URL` can override the default API URL; see `.env.example`.
+For a shared development URL, also run the storefront on port 5173. Its Vite server forwards `/admin/` to port 5174 and `/api` to port 5000. Run `ngrok http 5173 --host-header=localhost:5173` to share the storefront at `/` and admin at `/admin/`. Keep all three local servers and ngrok running. Development API requests use `/api` on the current origin; explicit `VITE_API_URL` overrides still take precedence. Production builds retain the root base path.
+
+The API uses the server's HTTP-only `token` cookie. In development, Vite proxies same-origin `/api` requests to the backend, so cookies work through the shared public URL too. `VITE_API_URL` can override the default API URL; see `.env.example`.
 
 ## Connected screens
 

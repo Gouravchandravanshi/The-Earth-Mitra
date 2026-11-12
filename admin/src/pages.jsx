@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams, NavLink, Navigate } from 'react-router-dom'
 import { Plus, Leaf, ShieldCheck, Mail, Lock, Check, CalendarDays, ChevronDown, IndianRupee, ShoppingBag, Users, ReceiptIndianRupee, PackageCheck, RotateCcw, MessageSquare } from 'lucide-react'
-import { Btn, Head, Card, Field, Fields, Modal, Table } from './ui.jsx'
+import { Btn, Head, Card, Field, Fields, Modal, Table, Loading } from './ui.jsx'
 import { useDispatch } from 'react-redux'
 import { settings, dash, lists } from './data.js'
 import { useListQuery, useSendMutation, setUser } from './store.js'
@@ -98,25 +98,30 @@ export function LiveDashboard() {
   const metrics = [['Revenue', `₹${Number(stats.revenue || 0).toLocaleString('en-IN')}`], ['Orders', stats.orderCount ?? 0], ['Customers', stats.customerCount ?? 0], ['Products', stats.productCount ?? 0]]
   return <div className="flex flex-col gap-5">
     <Head title="Dashboard" sub="Live totals from your Earth Mitra database" />
-    {isLoading && <p className="text-sm text-mute">Loading dashboard…</p>}
+    {isLoading && <Loading label="Loading dashboard…" />}
     {error && <p role="alert" className="text-sm text-red-700">Could not load dashboard data. Check your admin session and server.</p>}
-    <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(([label, value]) => <Card key={label} title={label}><p className="text-2xl font-semibold text-ink">{value}</p></Card>)}</div>
-    <div className="grid gap-5 xl:grid-cols-2">
-      <Card title="Recent orders"><Table cols={['Order', 'Customer', 'Total', 'Payment', 'Status']} rows={(data?.recentOrders || []).map(order => ['#' + order._id.slice(-6), order.user?.name || order.user?.email || '—', `₹${Number(order.totalAmount || 0).toLocaleString('en-IN')}`, order.paymentInfo?.status || 'pending', order.status])} />{!isLoading && !data?.recentOrders?.length && <p className="p-5 text-sm text-mute">No orders yet.</p>}</Card>
+    {!isLoading && !error && <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(([label, value]) => <Card key={label} title={label}><p className="text-2xl font-semibold text-ink">{value}</p></Card>)}</div>}
+    {!isLoading && !error && <div className="grid gap-5 xl:grid-cols-2">
+      <Card title="Recent orders"><Table cols={['Order', 'Customer', 'Total', 'Payment', 'Status']} rows={(data?.recentOrders || []).map(order => ['#' + order._id.slice(-6), order.user?.name || order.user?.email || order.guestName || order.guestEmail || 'Guest customer', `₹${Number(order.totalAmount || 0).toLocaleString('en-IN')}`, order.paymentInfo?.status || 'pending', order.status])} />{!isLoading && !data?.recentOrders?.length && <p className="p-5 text-sm text-mute">No orders yet.</p>}</Card>
       <Card title="Low-stock products"><Table cols={['Product', 'SKU', 'Stock']} rows={(data?.lowStockProducts || []).map(product => [product.name, product.sku || '—', product.stock])} />{!isLoading && !data?.lowStockProducts?.length && <p className="p-5 text-sm text-mute">No low-stock products.</p>}<p className="px-5 pb-5 text-xs text-mute">Low stock threshold: 10 units</p></Card>
-    </div>
+    </div>}
   </div>
 }
 
 export function ListPage({ c }) {
   const nav = useNavigate(), [open, setOpen] = useState(false), [tab, setTab] = useState('All'), [selected, setSelected] = useState(null), [message, setMessage] = useState('')
-  const { data, isLoading, error, refetch } = useListQuery(c.api?.path, { skip: !c.api })
+  const { data, isLoading, isFetching, error, refetch } = useListQuery(c.api?.path, { skip: !c.api })
   const [send, { isLoading: saving }] = useSendMutation()
   const live = c.api && (Array.isArray(data) ? data : data?.[c.api.key])
   const all = c.api ? (live || []).map(c.api.map) : c.rows
   const rows = tab === 'All' ? all : all.filter(r => r.includes(tab))
-  const onRow = r => {
-    if (c.rowTo) return nav(c.rowTo(r))
+  const onRow = (r, rowIndex) => {
+    if (c.rowTo) {
+      const sourceIndex = all.findIndex(candidate => candidate === r)
+      const target = c.rowTo(r, live?.[sourceIndex >= 0 ? sourceIndex : rowIndex])
+      if (target) nav(target)
+      return
+    }
     if (!c.panel || c.api?.create) return
     const index = all.indexOf(r)
     setSelected(live?.[index] || null)
@@ -144,8 +149,8 @@ export function ListPage({ c }) {
     <Head title={c.title} sub={c.sub}>{c.cta && <Btn onClick={() => (c.cta.to ? nav(c.cta.to) : setOpen(true))}><Plus size={16} />{c.cta.label}</Btn>}</Head>
     {c.tabs && <div className="mb-4 flex flex-wrap gap-2">{['All', ...c.tabs].map(t => (
       <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-sm ${tab === t ? 'bg-forest-600 text-white' : 'border border-line bg-card text-ink'}`}>{t}</button>))}</div>}
-    {c.charts && <Charts />}{isLoading && <p className="mb-3 text-sm text-mute">Loading records…</p>}{error && <p role="alert" className="mb-3 text-sm text-red-700">Could not load records. Check your admin session and server.</p>}
-    <Card className={c.charts ? 'mt-5' : ''}><Table cols={c.cols} rows={rows} onRow={c.rowTo || c.panel ? onRow : null} />{!isLoading && rows.length === 0 && <p className="p-5 text-sm text-mute">No records found.</p>}</Card>
+    {c.charts && <Charts />}{error && <p role="alert" className="mb-3 text-sm text-red-700">Could not load records. Check your admin session and server.</p>}
+    <Card className={c.charts ? 'mt-5' : ''}>{isLoading ? <Loading label="Loading records…" /> : <>{isFetching && <Loading label="Refreshing records…" />}<Table cols={c.cols} rows={rows} onRow={c.rowTo || c.panel ? onRow : null} />{rows.length === 0 && !isFetching && <p className="p-5 text-sm text-mute">No records found.</p>}</>}</Card>
     {c.panel && <Modal open={open} onClose={() => { setOpen(false); setSelected(null) }} title={selected && c.key === 'reviews' ? 'Moderate review' : c.panel.title} side={c.panel.side}>
       <form onSubmit={savePanel}><Fields fs={c.panel.fields.map(field => field.n === 'status' ? { ...field, d: selected?.isApproved === false ? 'Hidden' : 'Published' } : field)} />{message && <p role="alert" className="mt-3 text-sm text-red-700">{message}</p>}<div className="mt-5 flex justify-end gap-2"><Btn type="button" v="ghost" onClick={() => setOpen(false)}>Cancel</Btn><Btn type="submit" disabled={saving}>{saving ? 'Saving…' : c.panel.cta}</Btn></div></form></Modal>}
   </>
@@ -153,7 +158,8 @@ export function ListPage({ c }) {
 
 export function FormPage({ c }) {
   const nav = useNavigate(), [send, { isLoading }] = useSendMutation(), [msg, setMsg] = useState('')
-  const { data: categoryData } = useListQuery('/categories')
+  const [imagePreviews, setImagePreviews] = useState([])
+  const { data: categoryData, isLoading: categoriesLoading, error: categoriesError } = useListQuery('/categories', { skip: c.api?.kind !== 'product' })
   const categories = Array.isArray(categoryData) ? categoryData : categoryData?.categories || []
   const submit = async e => {
     e.preventDefault()
@@ -163,12 +169,25 @@ export function FormPage({ c }) {
     try {
       let body
       if (kind === 'product') {
+        const list = name => String(fd.get(name) || '').split(',').map(value => value.trim()).filter(Boolean)
+        const faqLines = String(fd.get('faqs') || '').split('\n').map(value => value.trim()).filter(Boolean)
+        const faqs = faqLines.map(line => {
+          const separator = line.indexOf('|')
+          if (separator < 1 || !line.slice(separator + 1).trim()) throw new Error('Enter each FAQ as Question | Answer.')
+          return { question: line.slice(0, separator).trim(), answer: line.slice(separator + 1).trim() }
+        })
         body = {
           name: String(fd.get('name') || '').trim(), description: String(fd.get('description') || '').trim(),
           category: fd.get('category'), sku: String(fd.get('sku') || '').trim() || undefined,
-          price: Number(fd.get('price')), discountPrice: Number(fd.get('discountPrice') || 0), stock: Number(fd.get('stock') || 0),
+          mrp: Number(fd.get('mrp')), price: Number(fd.get('price')), discountPrice: Number(fd.get('discountPrice') || 0), stock: Number(fd.get('stock') || 0),
           origin: String(fd.get('origin') || '').trim(), eco_certified: fd.has('eco_certified'),
-          certifications: String(fd.get('certifications') || '').split(',').map(x => x.trim()).filter(Boolean),
+          packContains: list('packContains'), suitableUses: list('suitableUses'), certifications: list('certifications'), faqs,
+          allergenInfo: { status: fd.get('allergenStatus') || 'unknown', allergens: list('allergens'), warnings: list('allergenWarnings') },
+          storage: {
+            instructions: String(fd.get('storageInstructions') || ''),
+            minTemperatureC: fd.get('minTemperatureC') === '' ? null : Number(fd.get('minTemperatureC')),
+            maxTemperatureC: fd.get('maxTemperatureC') === '' ? null : Number(fd.get('maxTemperatureC')),
+          },
         }
       } else if (kind === 'coupon') {
         body = { code: String(fd.get('code') || '').trim().toUpperCase(), discountType: fd.get('discountType'), discountValue: Number(fd.get('discountValue')), minOrderAmount: Number(fd.get('minOrderAmount') || 0), usageLimit: Number(fd.get('usageLimit')), expiresAt: fd.get('expiresAt'), isActive: fd.has('isActive') }
@@ -186,10 +205,12 @@ export function FormPage({ c }) {
       nav(-1)
     } catch (error) { setMsg(error?.data?.message || 'Save failed. Check the form values and server configuration.') }
   }
-  return <form onSubmit={submit}>
-    <Head title={c.title} sub={c.sub}><Btn type="button" v="ghost" onClick={() => nav(-1)}>Discard</Btn><Btn type="submit" disabled={isLoading}>{c.save || 'Save'}</Btn></Head>
+  return <form onSubmit={submit} onChange={event => { if (event.target.name === 'images' && event.target.files) setImagePreviews([...event.target.files].slice(0, 5).map(file => URL.createObjectURL(file))) }}>
+    <Head title={c.title} sub={c.sub}><Btn type="button" v="ghost" onClick={() => nav(-1)}>Discard</Btn><Btn type="submit" disabled={isLoading || categoriesLoading}>{isLoading ? 'Saving / uploading…' : c.save || 'Save'}</Btn></Head>
     {msg && <p className="mb-3 text-sm text-red-600">{msg}</p>}
-    <div className="space-y-5">{c.sections.map(s => <Card key={s.t} title={s.t}>{s.picker ? <Picker /> : <Fields fs={s.f.map(field => field.n === 'category' ? { ...field, o: categories.map(category => ({ label: category.name, value: category._id })) } : field)} />}</Card>)}</div></form>
+    {categoriesLoading && <Loading label="Loading categories…" />}
+    {categoriesError && c.api?.kind === 'product' && <p role="alert" className="mb-3 text-sm text-red-700">Could not load categories. Please retry before creating a product.</p>}
+    <div className="space-y-5">{c.sections.map(s => <Card key={s.t} title={s.t}>{s.picker ? <Picker /> : <><Fields fs={s.f.map(field => field.n === 'category' ? { ...field, o: categories.map(category => ({ label: category.name, value: category._id })) } : field)} />{s.t === 'Images' && imagePreviews.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{imagePreviews.map((src, i) => <img key={src} src={src} alt={`Product image preview ${i + 1}`} className="size-20 rounded-lg border border-line object-cover" />)}</div>}</>}</Card>)}</div></form>
 }
 
 export function Detail({ c }) {
@@ -206,6 +227,74 @@ export function Detail({ c }) {
   </>
 }
 
+import { ShippingPanel } from './ShippingPages.jsx'
+
+export function OrderDetail() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { data: order, isLoading, error, refetch } = useListQuery(`/orders/${id}`, { skip: !id })
+  const [send, { isLoading: saving }] = useSendMutation()
+  const [status, setStatus] = useState('processing')
+  const [message, setMessage] = useState('')
+  useEffect(() => {
+    if (order?.status) setStatus(order.status)
+  }, [order?._id, order?.status])
+
+  async function saveStatus() {
+    setMessage('')
+    try {
+      await send({ url: `/orders/${id}/status`, method: 'PUT', body: { status } }).unwrap()
+      setMessage('Order status updated.')
+      refetch()
+    } catch (saveError) {
+      setMessage(saveError?.data?.message || 'Could not update the order status.')
+    }
+  }
+
+  if (isLoading) return <><Head title="Order details" sub="Loading order…" /><Loading label="Loading order details…" /></>
+  if (error || !order) return <><Head title="Order not found" sub="Could not load this order." /><p role="alert" className="text-sm text-red-700">{error?.data?.message || 'The requested order could not be found.'}</p><Btn v="ghost" className="mt-4" onClick={() => navigate('/orders')}>Back to orders</Btn></>
+
+  const customerName = order.user?.name || order.guestName || 'Guest customer'
+  const customerEmail = order.user?.email || order.guestEmail || '—'
+  const customerPhone = order.user?.phone || order.guestPhone || order.shippingAddress?.phone || '—'
+  const addressText = address => [address?.firstName && `${address.firstName} ${address.lastName || ''}`.trim(), address?.company, address?.street, address?.apartment, [address?.city, address?.state, address?.pincode].filter(Boolean).join(', '), address?.country, address?.phone].filter(Boolean)
+  const orderNumber = order._id.slice(-8).toUpperCase()
+
+  return <div className="space-y-5">
+    <Head title={`Order #${orderNumber}`} sub={`Placed ${new Date(order.createdAt).toLocaleString()}`}>
+      <Btn v="ghost" onClick={() => navigate('/orders')}>Back to orders</Btn>
+    </Head>
+    <div className="grid gap-5 lg:grid-cols-3">
+      <Card title="Items ordered" className="lg:col-span-2">
+        {order.items?.length ? <div className="divide-y divide-line">{order.items.map((item, index) => {
+          const itemName = item.name || item.product?.name || 'Product';
+          const image = item.image || item.product?.images?.[0]?.url;
+          return <div key={`${item.product?._id || item.product || itemName}-${index}`} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+            {image ? <img src={image} alt={itemName} className="size-14 rounded-lg border border-line object-cover" /> : <div className="grid size-14 place-items-center rounded-lg bg-bg text-xs text-mute">Image</div>}
+            <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-ink">{itemName}</p><p className="mt-1 text-xs text-mute">Qty {item.qty} × ₹{Number(item.price || 0).toLocaleString('en-IN')}</p></div>
+            <p className="text-sm font-semibold text-ink">₹{(Number(item.price || 0) * Number(item.qty || 0)).toLocaleString('en-IN')}</p>
+          </div>
+        })}</div> : <p className="text-sm text-mute">No item details were saved for this order.</p>}
+        <div className="mt-5 space-y-2 border-t border-line pt-4 text-sm">
+          <div className="flex justify-between"><span className="text-mute">Subtotal</span><span>₹{Number(order.subtotal || 0).toLocaleString('en-IN')}</span></div>
+          <div className="flex justify-between"><span className="text-mute">Shipping</span><span>₹{Number(order.shippingFee || 0).toLocaleString('en-IN')}</span></div>
+          {Number(order.discount || 0) > 0 && <div className="flex justify-between text-forest-600"><span>Discount {order.couponCode ? `(${order.couponCode})` : ''}</span><span>−₹{Number(order.discount).toLocaleString('en-IN')}</span></div>}
+          <div className="flex justify-between border-t border-line pt-3 text-base font-bold"><span>Total</span><span>₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}</span></div>
+        </div>
+      </Card>
+
+      <div className="space-y-5">
+        <Card title="Customer"><dl className="space-y-3 text-sm"><div><dt className="text-xs text-mute">Name</dt><dd className="mt-1 font-medium text-ink">{customerName}</dd></div><div><dt className="text-xs text-mute">Email</dt><dd className="mt-1 break-all font-medium text-ink">{customerEmail}</dd></div><div><dt className="text-xs text-mute">Phone</dt><dd className="mt-1 font-medium text-ink">{customerPhone}</dd></div></dl></Card>
+        <Card title="Delivery address"><address className="space-y-1 text-sm not-italic text-ink">{addressText(order.shippingAddress).map((line, index) => <p key={index}>{line}</p>)}</address></Card>
+        {order.billingAddress && <Card title="Billing address"><address className="space-y-1 text-sm not-italic text-ink">{addressText(order.billingAddress).map((line, index) => <p key={index}>{line}</p>)}</address></Card>}
+        <Card title="Payment"><dl className="space-y-3 text-sm"><div className="flex justify-between gap-3"><dt className="text-mute">Payment status</dt><dd className="font-medium capitalize text-ink">{order.paymentInfo?.status || 'pending'}</dd></div><div><dt className="text-xs text-mute">Razorpay payment ID</dt><dd className="mt-1 break-all text-xs text-ink">{order.paymentInfo?.razorpay_payment_id || '—'}</dd></div><div><dt className="text-xs text-mute">Confirmation email</dt><dd className="mt-1 capitalize text-ink">{order.confirmationEmailStatus || 'pending'}</dd></div></dl></Card>
+        <Card title="Fulfilment status"><div className="flex gap-2"><select value={status} onChange={event => setStatus(event.target.value)} className="h-10 min-w-0 flex-1 rounded-lg border border-line bg-card px-3 text-sm text-ink"><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select><Btn onClick={saveStatus} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Btn></div>{message && <p role="status" className="mt-3 text-xs text-mute">{message}</p>}</Card>
+      </div>
+    </div>
+    <ShippingPanel order={order} onChange={refetch} />
+  </div>
+}
+
 export function Settings() {
   const { tab } = useParams(), c = settings[tab]
   if (!c) return <Navigate to="/settings/general" replace />
@@ -218,11 +307,11 @@ export function Settings() {
 
 function Picker() {
   const [q, setQ] = useState('')
-  const { data } = useListQuery('/products')
+  const { data, isLoading } = useListQuery('/products')
   const live = Array.isArray(data) ? data : data?.products
-  const items = (live?.length ? live : lists.products.rows.map(r => ({ _id: r[0], name: r[0] }))).filter(p => p.name.toLowerCase().includes(q.toLowerCase()))
+  const items = (live || []).filter(p => p.name.toLowerCase().includes(q.toLowerCase()))
   return <div><input value={q} onChange={e => setQ(e.target.value)} placeholder="Browse products" className="mb-3 h-10 w-full rounded-lg border border-line bg-card px-3 text-sm text-ink outline-none" />
-    <div className="max-h-56 space-y-1 overflow-y-auto">{items.map(p => <label key={p._id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-ink"><input type="checkbox" name="products" value={p._id} className="accent-[#1e6e53]" />{p.name}</label>)}</div></div>
+    {isLoading ? <Loading label="Loading products…" /> : <div className="max-h-56 space-y-1 overflow-y-auto">{items.map(p => <label key={p._id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-ink"><input type="checkbox" name="products" value={p._id} className="accent-[#1e6e53]" />{p.name}</label>)}{!items.length && <p className="p-3 text-sm text-mute">No products found.</p>}</div>}</div>
 }
 
 function Charts() {

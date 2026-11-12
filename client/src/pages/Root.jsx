@@ -27,6 +27,9 @@ export default function Root() {
     function removeFromCart(id) {
         setCartItems(prev => prev.filter(i => i.id !== id));
     }
+    function clearCart() {
+        setCartItems([]);
+    }
     function login(currentUser) {
         userActionRef.current = true;
         setUser(currentUser);
@@ -36,7 +39,7 @@ export default function Root() {
         setUser(null);
         try { await logoutUser(); } catch { /* A missing/expired session is already logged out locally. */ }
     }
-    const ctx = { addToCart, cartItems, user, login, logout };
+    const ctx = { addToCart, cartItems, clearCart, user, login, logout };
     const { pathname } = useLocation();
     // ADDED (new flow): checkout page has its own minimal header, so hide the main Navbar/Footer there
     const isCheckout = pathname === '/checkout';

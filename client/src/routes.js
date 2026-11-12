@@ -7,6 +7,7 @@ import { BlogsListPage, BlogDetailPage } from './pages/BlogsPage';
 import { CollectionsListPage, CollectionDetailPage } from './pages/CollectionsPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
+import { PrivacyPolicyPage, RefundPolicyPage, ShippingPolicyPage, TermsPage, CancellationPolicyPage } from './pages/PolicyPages';
 // ADDED (new flow): account area (overview / orders / address / profile)
 import AccountPage from './pages/AccountPage';
 // ADDED (new flow): checkout page
@@ -21,10 +22,16 @@ export const router = createBrowserRouter([
             { path: 'products/:slug', Component: ProductDetailPage },
             { path: 'blogs', Component: BlogsListPage },
             { path: 'blogs/:slug', Component: BlogDetailPage },
+            { path: 'recipes/:slug', Component: BlogDetailPage },
             { path: 'collections', Component: CollectionsListPage },
             { path: 'collections/:slug', Component: CollectionDetailPage },
             { path: 'about', Component: AboutPage },
             { path: 'contact', Component: ContactPage },
+            { path: 'pages/privacy-policy', Component: PrivacyPolicyPage },
+            { path: 'pages/refund-policy', Component: RefundPolicyPage },
+            { path: 'pages/shipping-policy', Component: ShippingPolicyPage },
+            { path: 'pages/terms-of-service', Component: TermsPage },
+            { path: 'pages/cancellation-policy', Component: CancellationPolicyPage },
             // ADDED (new flow): account page after login
             { path: 'pages/account', Component: AccountPage },
             // ADDED (fix): lets the navbar dropdown links (/pages/account/orders, /address, /profile) open the right tab

@@ -11,7 +11,7 @@ const { protect, adminOnly } = require("../middlewares/auth");
 
 router.get("/", protect, adminOnly, getAllCoupons);
 router.post("/", protect, adminOnly, createCoupon);
-router.post("/apply", protect, applyCoupon);
+router.post("/apply", applyCoupon);
 router.put("/:id/toggle", protect, adminOnly, toggleCoupon);
 router.delete("/:id", protect, adminOnly, deleteCoupon);
 

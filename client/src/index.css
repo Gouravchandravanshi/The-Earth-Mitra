@@ -1,5 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&display=swap');
 @import 'tailwindcss';
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: #e9ece5;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 65%), transparent);
+  transform: translateX(-100%);
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; display: none; }
+}
 
 @theme {
   --color-brand-green: #2D5A2E;
@@ -8,15 +30,44 @@
   --color-brand-red: #C0392B;
   --color-brand-brown: #2C1A0E;
   --color-brand-beige: #F5F1EB;
-  --font-sans: 'Poppins', sans-serif;
-  --font-display: 'Playfair Display', serif;
+  --font-sans: 'Myriad Pro', sans-serif;
+  --font-display: 'Foco', sans-serif;
 }
 
 * { box-sizing: border-box; }
 
+/* Keep the full-bleed gifting artwork inside the page at every breakpoint. */
+.diwali-gifting-banner,
+.diwali-gifting-banner__link,
+.diwali-gifting-banner__picture {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.diwali-gifting-banner { overflow: clip; }
+
+.diwali-gifting-banner__image {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
 body {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Myriad Pro', sans-serif;
   color: #2C1A0E;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Foco', sans-serif !important;
+}
+
+.section-heading {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  line-height: 1.2;
 }
 
 /* Scrollbar hide */
@@ -81,6 +132,16 @@ body {
 .icon-bounce-hover:hover .icon-emoji { animation: iconBounce 0.5s ease; }
 .icon-wiggle-hover:hover .icon-emoji { animation: iconWiggle 0.5s ease; }
 
+.category-icon-wiggle { animation: iconWiggle 0.55s ease; }
+.category-icon-bounce { animation: iconBounce 0.55s ease; }
+.category-icon-pop { animation: iconPop 0.45s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .category-icon-wiggle,
+  .category-icon-bounce,
+  .category-icon-pop { animation: none; }
+}
+
 /* Marquee for announcement bar */
 @keyframes marquee {
   from { transform: translateX(0); }
@@ -112,3 +173,64 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-count-up { animation: countUp 0.6s ease both; }
+
+.instagram-reel-arrow {
+  cursor: pointer;
+  overflow: hidden;
+  isolation: isolate;
+  transition: opacity 200ms ease, color 250ms ease, border-color 300ms ease;
+}
+
+.instagram-reel-arrow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(to top, #2C1A0E, #2D5A2E);
+  transform: translateY(102%);
+  transition: transform 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.instagram-reel-arrow:hover,
+.instagram-reel-arrow:focus-visible {
+  color: #fff;
+  border-color: #2D5A2E;
+}
+
+.instagram-reel-arrow:hover::before,
+.instagram-reel-arrow:focus-visible::before {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .instagram-reel-arrow,
+  .instagram-reel-arrow::before {
+    transition: none;
+  }
+}
+
+.category-dropdown {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 200ms ease, transform 200ms ease, visibility 0s linear 200ms;
+}
+
+.category-dropdown[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition: opacity 200ms ease, transform 200ms ease, visibility 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-dropdown,
+  .category-dropdown[data-open="true"] {
+    transition: none;
+    transform: none;
+  }
+}

@@ -11,12 +11,18 @@ const productSchema = new mongoose.Schema(
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
     sku: { type: String, trim: true, uppercase: true, sparse: true, unique: true },
     description: { type: String, required: true, trim: true },
+    mrp: { type: Number, min: 0, default: 0 },
     price: { type: Number, required: true, min: 0 },
     discountPrice: { type: Number, default: 0, min: 0 },
     stock: { type: Number, required: true, default: 0, min: 0 },
+    shippingParcel: {
+      weightKg: { type: Number, min: 0.001 }, lengthCm: { type: Number, min: 0.5 },
+      breadthCm: { type: Number, min: 0.5 }, heightCm: { type: Number, min: 0.5 },
+    },
     images: { type: [imageSchema], default: [] },
     gallery: { type: [imageSchema], default: [] },
     category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true, index: true },
+    packContains: [{ type: String, trim: true, maxlength: 200 }],
     variants: [{
       name: { type: String, trim: true },
       sku: { type: String, trim: true, uppercase: true },
